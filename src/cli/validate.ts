@@ -1,21 +1,35 @@
 import { resolve } from 'node:path'
 import { existsSync } from 'node:fs'
+import { loadConfig } from '../utils/load-config.js'
 import type { ElectronMcpConfig } from '../index.js'
 
+const CONFIG_NAMES = [
+  'electron-mcp.config.ts',
+  'electron-mcp.config.js',
+  'electron-mcp.config.mjs',
+]
+
 export async function validate(): Promise<void> {
-  const configPath = resolve('electron-mcp.config.ts')
-  if (!existsSync(configPath)) {
+  let configPath: string | undefined
+  for (const name of CONFIG_NAMES) {
+    const candidate = resolve(name)
+    if (existsSync(candidate)) {
+      configPath = candidate
+      break
+    }
+  }
+
+  if (!configPath) {
     console.error('Config file: not found')
     console.error('   Run: npx electron-mcp init')
     process.exit(1)
   }
 
-  console.log('Config file: electron-mcp.config.ts')
+  console.log(`Config file: ${configPath.split('/').pop()}`)
 
   let config: ElectronMcpConfig
   try {
-    const mod = await import(configPath)
-    config = mod.default
+    config = await loadConfig(configPath)
   } catch (err: any) {
     console.error(`Config load failed: ${err.message}`)
     process.exit(1)

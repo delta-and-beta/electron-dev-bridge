@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { existsSync } from 'node:fs'
 import { startServer } from '../server/mcp-server.js'
-import type { ElectronMcpConfig } from '../index.js'
+import { loadConfig } from '../utils/load-config.js'
 
 const CONFIG_NAMES = [
   'electron-mcp.config.ts',
@@ -31,8 +31,7 @@ export async function serve(configPath?: string): Promise<void> {
     process.exit(1)
   }
 
-  const mod = await import(resolvedPath)
-  const config: ElectronMcpConfig = mod.default
+  const config = await loadConfig(resolvedPath)
 
   if (!config || !config.app || !config.tools) {
     console.error('Error: Invalid config. Must export default defineConfig({ app, tools })')
