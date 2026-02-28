@@ -256,3 +256,103 @@ electron_screenshot
 | Stale connection | App reloaded or crashed | Use `electron_connect` to re-establish the CDP connection |
 | Click has no effect | Element obscured by overlay, or coordinates are off-screen | Use `electron_get_bounding_box` to verify position; check for modals/overlays |
 | Type text not appearing | Element not focused, or input blocked by JS event handler | Provide `selector` param to auto-focus; check for `readonly`/`disabled` attributes |
+
+---
+
+## SDK Mode
+
+SDK mode turns your Electron app's existing IPC handlers into MCP tools automatically. Instead of writing CDP evaluation scripts by hand, you declare a config file that maps `ipcMain.handle()` channels to MCP tools -- with optional Zod schema validation, resource polling, and the full CDP tool suite alongside your custom tools.
+
+### When to Use SDK Mode vs Standalone CDP Mode
+
+| Use SDK mode when... | Use standalone CDP mode when... |
+|---|---|
+| Your app has structured IPC handlers (`ipcMain.handle`) | You need raw DOM automation on any Electron app |
+| You want type-safe tool inputs via Zod schemas | You are testing or debugging an app you do not own |
+| You need to expose app-specific resources (live data) | You only need screenshots, clicks, and element queries |
+| You want a single config file to manage all tools | You want zero-config quick start |
+
+SDK mode and CDP mode are complementary -- set `cdpTools: true` in your config to get both.
+
+### Quick Start
+
+```bash
+# 1. Install the SDK in your Electron project
+npm install electron-mcp-sdk
+
+# 2. Scaffold a config from your source code
+npx electron-mcp init
+
+# 3. Register as a Claude Code MCP server
+npx electron-mcp register
+```
+
+After `init`, review and edit the generated `electron-mcp.config.ts`, then run `npx electron-mcp serve` to start the server.
+
+### Config File Overview
+
+The config file (`electron-mcp.config.ts`) uses `defineConfig()` for type-safe configuration:
+
+```ts
+import { defineConfig } from 'electron-mcp-sdk'
+
+export default defineConfig({
+  app: {
+    name: 'my-app',
+    path: '/path/to/app',
+    debugPort: 9229,
+  },
+  tools: {
+    'profiles:query': {
+      description: 'Search profiles',
+      // schema: profileQuerySchema,  // optional Zod schema
+      returns: 'Array of profile objects',
+    },
+  },
+  resources: {
+    'crawl:progress': {
+      description: 'Live crawl progress',
+      uri: 'electron://my-app/crawl/progress',
+      pollExpression: 'window.__crawlProgress || { crawled: 0, total: 0 }',
+    },
+  },
+  cdpTools: true,        // include all 22 CDP tools
+  screenshots: {
+    dir: './screenshots',
+    format: 'png',
+  },
+})
+```
+
+See `examples/linkedin-app-config.ts` for a full 38-tool real-world config.
+
+### IPC Tool Naming Convention
+
+IPC channel names use colon-separated `domain:action` format. The SDK converts these to MCP tool names by replacing colons with underscores:
+
+| IPC channel | MCP tool name |
+|---|---|
+| `profiles:query` | `profiles_query` |
+| `tags:add` | `tags_add` |
+| `crawl:start` | `crawl_start` |
+
+The preload path is auto-derived as `window.electronAPI.{domain}.{action}`. Override it with the `preloadPath` field when the actual preload method name differs.
+
+### Resource Polling Pattern
+
+Resources expose live app state that Claude can read on demand. Each resource needs:
+
+- **`uri`**: Unique identifier (e.g. `electron://app-name/domain/resource`)
+- **`pollExpression`**: JavaScript expression evaluated in the renderer to fetch current data
+- **`description`**: Human-readable description for Claude
+
+The server evaluates the `pollExpression` via CDP whenever Claude reads the resource.
+
+### CLI Command Reference
+
+| Command | Description |
+|---|---|
+| `npx electron-mcp serve [config]` | Start the MCP server (default command) |
+| `npx electron-mcp init` | Scan source for `ipcMain.handle()` calls and Zod schemas, generate config |
+| `npx electron-mcp register` | Register the server with Claude Code (`claude mcp add`) |
+| `npx electron-mcp validate` | Validate the config file and report tool/resource/CDP readiness |
