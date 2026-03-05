@@ -69,61 +69,21 @@ function matchSchemaToChannel(
   return undefined
 }
 
-export async function init(): Promise<void> {
-  const configPath = resolve('electron-mcp.config.ts')
-
-  if (existsSync(configPath)) {
-    console.error('electron-mcp.config.ts already exists. Delete it to re-initialize.')
-    process.exit(1)
-  }
-
-  const cwd = process.cwd()
-  console.log('Scanning source files...')
-
-  const sourceFiles = findSourceFiles(cwd)
-  console.log(`   Found ${sourceFiles.length} source files`)
-
-  // Scan for IPC handlers
-  const allHandlers: DetectedHandler[] = []
-  for (const file of sourceFiles) {
-    allHandlers.push(...scanForHandlers(file))
-  }
-  console.log(`   Found ${allHandlers.length} ipcMain.handle() calls`)
-
-  // Scan for Zod schemas
-  const allSchemas: DetectedSchema[] = []
-  for (const file of sourceFiles) {
-    allSchemas.push(...scanForSchemas(file))
-  }
-  console.log(`   Found ${allSchemas.length} Zod schema exports`)
-
-  // Try to get app name from package.json
-  let appName = basename(cwd)
-  const pkgPath = resolve(cwd, 'package.json')
-  if (existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-      if (pkg.name) {
-        appName = pkg.name
-      }
-    } catch {
-      // ignore parse errors
-    }
-  }
-
-  // Match schemas to channels
-  const configDir = dirname(configPath)
+function buildToolEntries(
+  handlers: DetectedHandler[],
+  schemas: DetectedSchema[],
+  configDir: string,
+): { toolEntries: string[]; imports: Map<string, Set<string>>; linkedCount: number } {
   const imports: Map<string, Set<string>> = new Map()
   const toolEntries: string[] = []
   let linkedCount = 0
 
-  for (const handler of allHandlers) {
-    const match = matchSchemaToChannel(handler.channel, allSchemas, configDir)
+  for (const handler of handlers) {
+    const match = matchSchemaToChannel(handler.channel, schemas, configDir)
     const description = deriveDescription(handler.channel)
 
     if (match) {
       linkedCount++
-      // Track import
       if (!imports.has(match.importPath)) {
         imports.set(match.importPath, new Set())
       }
@@ -144,9 +104,14 @@ export async function init(): Promise<void> {
     }
   }
 
-  console.log(`   Linked ${linkedCount} schemas to handlers`)
+  return { toolEntries, imports, linkedCount }
+}
 
-  // Generate config file
+function generateConfigSource(
+  appName: string,
+  toolEntries: string[],
+  imports: Map<string, Set<string>>,
+): string {
   const importLines: string[] = [
     `import { defineConfig } from 'electron-mcp-sdk'`,
   ]
@@ -160,7 +125,7 @@ export async function init(): Promise<void> {
     ? toolEntries.join(',\n')
     : `    // No IPC handlers detected. Add tools manually:\n    // 'channel:action': { description: 'Description' }`
 
-  const config = `${importLines.join('\n')}
+  return `${importLines.join('\n')}
 
 export default defineConfig({
   app: {
@@ -171,8 +136,53 @@ ${toolsBlock}
   },
 })
 `
+}
 
+export async function init(): Promise<void> {
+  const configPath = resolve('electron-mcp.config.ts')
+
+  if (existsSync(configPath)) {
+    console.error('electron-mcp.config.ts already exists. Delete it to re-initialize.')
+    process.exit(1)
+  }
+
+  const cwd = process.cwd()
+  console.log('Scanning source files...')
+
+  const sourceFiles = findSourceFiles(cwd)
+  console.log(`   Found ${sourceFiles.length} source files`)
+
+  const allHandlers: DetectedHandler[] = []
+  for (const file of sourceFiles) {
+    allHandlers.push(...scanForHandlers(file))
+  }
+  console.log(`   Found ${allHandlers.length} ipcMain.handle() calls`)
+
+  const allSchemas: DetectedSchema[] = []
+  for (const file of sourceFiles) {
+    allSchemas.push(...scanForSchemas(file))
+  }
+  console.log(`   Found ${allSchemas.length} Zod schema exports`)
+
+  let appName = basename(cwd)
+  const pkgPath = resolve(cwd, 'package.json')
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+      if (pkg.name) appName = pkg.name
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  const { toolEntries, imports, linkedCount } = buildToolEntries(
+    allHandlers, allSchemas, dirname(configPath),
+  )
+  console.log(`   Linked ${linkedCount} schemas to handlers`)
+
+  const config = generateConfigSource(appName, toolEntries, imports)
   writeFileSync(configPath, config, 'utf-8')
+
   console.log(`\nGenerated electron-mcp.config.ts`)
   console.log(`   ${allHandlers.length} tools, ${linkedCount} with schemas`)
   console.log(`\nNext steps:`)

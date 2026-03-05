@@ -9,51 +9,26 @@ import {
 import { CdpBridge } from './cdp-bridge.js'
 import { buildTools, type ResolvedTool } from './tool-builder.js'
 import { buildResources, type ResolvedResource } from './resource-builder.js'
-import { getCdpTools } from '../cdp-tools/index.js'
+import { getCdpTools, type CdpTool } from '../cdp-tools/index.js'
 import type { ElectronMcpConfig } from '../index.js'
 
-export async function startServer(config: ElectronMcpConfig): Promise<void> {
-  const bridge = new CdpBridge(config.app.debugPort || 9229)
-
-  // Build IPC tools from config
-  const ipcTools = await buildTools(config)
-
-  // Build CDP tools (optional)
-  let cdpToolDefs: Array<{ definition: any; handler: any }> = []
-  if (config.cdpTools) {
-    cdpToolDefs = getCdpTools(bridge, config.app, config.screenshots)
-    if (Array.isArray(config.cdpTools)) {
-      const allowed = new Set(config.cdpTools)
-      cdpToolDefs = cdpToolDefs.filter(t => allowed.has(t.definition.name))
-    }
-  }
-
-  // Build resources
-  const resources = buildResources(config)
-
-  // Create MCP server
-  const server = new Server(
-    { name: config.app.name, version: '0.1.0' },
-    { capabilities: {
-      tools: {},
-      ...(resources.length > 0 ? { resources: {} } : {}),
-    }}
-  )
-
-  // Register tool list handler
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    const tools = [
+function registerToolHandlers(
+  server: Server,
+  bridge: CdpBridge,
+  ipcTools: ResolvedTool[],
+  cdpToolDefs: CdpTool[],
+): void {
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [
       ...ipcTools.map(t => ({
         name: t.name,
         description: t.description,
         inputSchema: t.inputSchema,
       })),
       ...cdpToolDefs.map(t => t.definition),
-    ]
-    return { tools }
-  })
+    ],
+  }))
 
-  // Build handler lookup maps
   const ipcHandlerMap = new Map<string, ResolvedTool>()
   for (const tool of ipcTools) {
     ipcHandlerMap.set(tool.name, tool)
@@ -63,11 +38,9 @@ export async function startServer(config: ElectronMcpConfig): Promise<void> {
     cdpHandlerMap.set(tool.definition.name, tool.handler)
   }
 
-  // Register tool call handler
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params
 
-    // Check IPC tools first
     const ipcTool = ipcHandlerMap.get(name)
     if (ipcTool) {
       try {
@@ -90,7 +63,6 @@ export async function startServer(config: ElectronMcpConfig): Promise<void> {
       }
     }
 
-    // Check CDP tools
     const cdpHandler = cdpHandlerMap.get(name)
     if (cdpHandler) {
       try {
@@ -108,40 +80,72 @@ export async function startServer(config: ElectronMcpConfig): Promise<void> {
       isError: true,
     }
   })
+}
 
-  // Register resource handlers (if any)
-  if (resources.length > 0) {
-    server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-      resources: resources.map(r => ({
-        uri: r.uri,
-        name: r.name,
-        description: r.description,
-        mimeType: r.mimeType,
-      })),
-    }))
+function registerResourceHandlers(
+  server: Server,
+  bridge: CdpBridge,
+  resources: ResolvedResource[],
+): void {
+  if (resources.length === 0) return
 
-    server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-      const resource = resources.find(r => r.uri === request.params.uri)
-      if (!resource) {
-        throw new Error(`Unknown resource: ${request.params.uri}`)
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+    resources: resources.map(r => ({
+      uri: r.uri,
+      name: r.name,
+      description: r.description,
+      mimeType: r.mimeType,
+    })),
+  }))
+
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const resource = resources.find(r => r.uri === request.params.uri)
+    if (!resource) {
+      throw new Error(`Unknown resource: ${request.params.uri}`)
+    }
+
+    try {
+      const data = await bridge.evaluate(resource.pollExpression, true)
+      return {
+        contents: [{
+          uri: resource.uri,
+          mimeType: resource.mimeType,
+          text: JSON.stringify(data, null, 2),
+        }],
       }
+    } catch (err: any) {
+      throw new Error(`Failed to read resource ${resource.uri}: ${err.message}`)
+    }
+  })
+}
 
-      try {
-        const data = await bridge.evaluate(resource.pollExpression, true)
-        return {
-          contents: [{
-            uri: resource.uri,
-            mimeType: resource.mimeType,
-            text: JSON.stringify(data, null, 2),
-          }],
-        }
-      } catch (err: any) {
-        throw new Error(`Failed to read resource ${resource.uri}: ${err.message}`)
-      }
-    })
+export async function startServer(config: ElectronMcpConfig): Promise<void> {
+  const bridge = new CdpBridge(config.app.debugPort || 9229)
+
+  const ipcTools = await buildTools(config)
+
+  let cdpToolDefs: CdpTool[] = []
+  if (config.cdpTools) {
+    cdpToolDefs = getCdpTools(bridge, config.app, config.screenshots)
+    if (Array.isArray(config.cdpTools)) {
+      const allowed = new Set(config.cdpTools)
+      cdpToolDefs = cdpToolDefs.filter(t => allowed.has(t.definition.name))
+    }
   }
 
-  // Start server
+  const resources = buildResources(config)
+
+  const server = new Server(
+    { name: config.app.name, version: '0.1.0' },
+    { capabilities: {
+      tools: {},
+      ...(resources.length > 0 ? { resources: {} } : {}),
+    }}
+  )
+
+  registerToolHandlers(server, bridge, ipcTools, cdpToolDefs)
+  registerResourceHandlers(server, bridge, resources)
+
   const transport = new StdioServerTransport()
   await server.connect(transport)
 }
