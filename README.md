@@ -286,6 +286,28 @@ The SDK converts Zod schemas to JSON Schema using `zod-to-json-schema`, which MC
 | Config not found | Run `npx electron-mcp init` or create `electron-mcp.config.ts` manually. |
 | Tool returns undefined | Check that your preload path matches the actual `contextBridge` exposure. Run `npx electron-mcp validate`. |
 
+## Sample Skills for Claude Code
+
+The `skills/` directory contains sample [Claude Code skills](https://docs.anthropic.com/en/docs/claude-code/skills) that teach Claude how to use the SDK effectively. Copy the ones you need into your project's `.claude/skills/` directory:
+
+```bash
+# Copy all sample skills
+cp -r node_modules/electron-mcp-sdk/skills/* .claude/skills/
+
+# Or copy individual skills
+cp -r node_modules/electron-mcp-sdk/skills/electron-app-dev .claude/skills/
+cp -r node_modules/electron-mcp-sdk/skills/electron-e2e-testing .claude/skills/
+cp -r node_modules/electron-mcp-sdk/skills/electron-debugging .claude/skills/
+```
+
+| Skill | Triggers on | What it covers |
+|-------|-------------|----------------|
+| `electron-app-dev` | Electron app, desktop app, UI automation, DOM inspection, IPC | Tool reference, selector strategy, IPC usage, build & verify playbooks |
+| `electron-e2e-testing` | Test, e2e, regression, form testing, UI verification | Test patterns, form automation, visual regression, multi-page flows |
+| `electron-debugging` | Debug, bug, broken, not working, element not found | Diagnostic flowcharts, connection troubleshooting, common error patterns |
+
+After copying, Claude Code will automatically load the relevant skill when your prompts match its trigger keywords.
+
 ## Requirements
 
 - Node.js >= 18
