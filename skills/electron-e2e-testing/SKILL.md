@@ -30,7 +30,7 @@ Every test follows this structure:
 
 ```
 # 1. Connect
-electron_connect  port=9229
+electron_connect
 
 # 2. Wait for the target element
 electron_wait_for_selector  selector="[data-testid='submit-btn']"  timeout=5000
@@ -57,7 +57,7 @@ electron_screenshot
 
 ```
 # 1. Connect and wait for form
-electron_connect  port=9229
+electron_connect
 electron_wait_for_selector  selector="form"
 
 # 2. Discover fields
@@ -95,7 +95,7 @@ electron_screenshot
 
 ```
 # Phase 1: Capture baseline (before changes)
-electron_connect  port=9229
+electron_connect
 electron_wait_for_selector  selector="{YOUR_APP_ROOT}"
 electron_screenshot
 # Save as baseline -- note the returned file path
@@ -108,11 +108,11 @@ electron_screenshot
 
 # Phase 3: Compare
 electron_compare_screenshots  pathA="baseline.png"  pathB="current.png"
-# Returns: { diffPercentage: 0.5 }
+# Returns: { identical: false, diffPercent: 0.5, totalBytes: 120000, diffBytes: 600 }
 ```
 
-**Thresholds:**
-- `< 1%` diff: likely acceptable (anti-aliasing, subpixel rendering)
+**Thresholds** (note: this is a byte-level diff, not pixel-aware):
+- `< 1%` diff: likely acceptable (compression variance, anti-aliasing)
 - `1-5%` diff: review the screenshot -- may be intentional
 - `> 5%` diff: likely a regression, investigate
 
@@ -122,7 +122,7 @@ electron_compare_screenshots  pathA="baseline.png"  pathB="current.png"
 
 ```
 # Step 1: Login page
-electron_connect  port=9229
+electron_connect
 electron_wait_for_selector  selector="#login-form"
 electron_type_text  selector="#username"  text="testuser"
 electron_type_text  selector="#password"  text="testpass"
@@ -166,14 +166,14 @@ If `electron_wait_for_selector` times out, the element didn't appear. This is a 
 
 ## IPC-Based Assertions
 
-When the app has IPC tools configured, use them for deeper assertions:
+When the app has IPC tools configured, use them for deeper assertions. Tool names depend on your app's config — these are examples:
 
 ```
-# After a form submit, verify via IPC
+# After a form submit, verify via IPC (example tool names)
 profiles_query  query="Jane Doe"
 # Assert: returned array contains the submitted profile
 
-# Check app state directly
+# Check app state directly (example tool name)
 session_getStatus
 # Assert: status is "authenticated"
 ```

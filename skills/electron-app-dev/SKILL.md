@@ -24,8 +24,8 @@ Use the MCP bridge to connect, inspect, interact with, and screenshot your Elect
 # Launch and connect in one step
 electron_launch  appPath="/path/to/{YOUR_APP}"
 
-# Or connect to an already-running app
-electron_connect  port=9229
+# Or connect to an already-running app (uses the port from your config)
+electron_connect
 ```
 
 Always connect before using any other tools.
@@ -68,14 +68,14 @@ Always connect before using any other tools.
 | Tool | Use for |
 |------|---------|
 | `electron_wait_for_selector` | Wait for element to appear (default 5s) |
-| `electron_set_viewport` | Set window dimensions |
-| `electron_scroll` | Scroll page or element |
+| `electron_set_viewport` | Override viewport metrics for responsive testing (`width`, `height` required) |
+| `electron_scroll` | Scroll page or element (`direction`: up/down/left/right, `amount`: pixels, `selector`: optional) |
 
 ### Screenshots & Visual
 | Tool | Use for |
 |------|---------|
 | `electron_screenshot` | Capture full page or element |
-| `electron_compare_screenshots` | Diff two screenshots (returns diff %) |
+| `electron_compare_screenshots` | Byte-level diff of two screenshots (returns `diffPercent`) |
 | `electron_highlight_element` | Outline element in red for 3 seconds |
 
 ## Selector Strategy (priority order)
@@ -104,7 +104,7 @@ If the app uses electron-mcp-sdk with configured IPC handlers, tools are named b
 |-------------|---------------|--------------|
 | `{domain}:{action}` | `{domain}_{action}` | `window.electronAPI.{domain}.{action}` |
 
-Call IPC tools directly by name once the server is registered.
+Call IPC tools directly by name once the server is registered. Tool names depend on your app's config — e.g., `profiles_query`, `settings_get`.
 
 ## Playbook: Build & Verify
 

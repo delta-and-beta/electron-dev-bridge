@@ -12,6 +12,10 @@ export class CdpBridge {
     return this.client !== null
   }
 
+  setPort(port: number): void {
+    this.port = port
+  }
+
   async connect(maxRetries = 10): Promise<void> {
     let lastError: Error | undefined
 

@@ -56,7 +56,7 @@ electron_connect  port=9230
 | Error | Cause | Fix |
 |-------|-------|-----|
 | Connection refused | App not running or no debug port | Start app with `--remote-debugging-port=9229` |
-| Port already in use | Another process on 9229 | Kill the process or use a different port |
+| Port already in use | Another process on 9229 | Kill the process or use `electron_connect port=9230` |
 | Target not found | App has no renderer window | Ensure a BrowserWindow is created |
 | Connection lost mid-session | App crashed or reloaded | `electron_connect` to reconnect |
 
@@ -153,7 +153,7 @@ electron_type_text  text="test input"
 | Click no effect | Wrong coordinates | Use `electron_get_bounding_box` to verify |
 | Type not appearing | Element not focused | Click element first, then type |
 | Type not appearing | Input is readonly | Check `readonly`/`disabled` attributes |
-| Key press ignored | Wrong key name | Use exact names: `Enter`, `Tab`, `Escape`, `ArrowDown` |
+| Key press ignored | Wrong key name | Supported: `Enter`, `Tab`, `Escape`, `Backspace`, `Delete`, `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`, `Home`, `End`, `Space` |
 
 ## Wrong Content / State
 
@@ -182,7 +182,7 @@ electron_screenshot
 electron_screenshot
 
 # 2. Reconnect if stale
-electron_connect  port=9229
+electron_connect
 
 # 3. Check URL
 electron_get_url

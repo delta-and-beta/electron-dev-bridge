@@ -95,6 +95,7 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
       },
       handler: async ({ port }: { port?: number } = {}) => {
         const targetPort = port || appConfig.debugPort || 9229
+        bridge.setPort(targetPort)
         await bridge.connect()
         return toolResult({ connected: true, port: targetPort })
       },
