@@ -10,9 +10,10 @@
 
 <br>
 
+[![CI](https://github.com/delta-and-beta/electron-dev-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/delta-and-beta/electron-dev-bridge/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![CDP Tools](https://img.shields.io/badge/CDP_Tools-31-00D9C0?style=flat-square)](./src/cdp-tools)
+[![CDP Tools](https://img.shields.io/badge/CDP_Tools-33-00D9C0?style=flat-square)](./src/cdp-tools)
 [![License](https://img.shields.io/badge/License-MIT-FF6B5B?style=flat-square)](./LICENSE)
 
 <br>
@@ -29,7 +30,7 @@
 
 ## Overview
 
-electron-dev-bridge maps your Electron app's `ipcMain.handle()` channels to MCP tools that Claude Code can call directly. It includes 31 built-in CDP tools for DOM automation, screenshots, interaction, JS evaluation, console/network capture, and multi-window support — no IPC handlers required.
+electron-dev-bridge maps your Electron app's `ipcMain.handle()` channels to MCP tools that Claude Code can call directly. It includes 33 built-in CDP tools for DOM automation, screenshots, interaction, JS evaluation, console/network capture, and multi-window support — no IPC handlers required.
 
 ```
 Your Electron App                   Claude Code
@@ -77,7 +78,7 @@ For generic browser automation without Electron-specific features, a standard Ch
 </td>
 <td width="50%" valign="top">
 
-### CDP Tools (31)
+### CDP Tools (33)
 
 **DOM Queries** — Selectors, text search, a11y tree<br>
 **Interaction** — Click, type, fill, key press, select<br>
@@ -139,7 +140,7 @@ Then in Claude Code:
 profiles_query  query="test user"
 tags_add  profileId="123"  tag="vip"
 
-# 31 built-in CDP tools
+# 33 built-in CDP tools
 electron_evaluate  expression="document.title"
 electron_screenshot
 electron_click  selector="[data-testid='submit']"
@@ -267,7 +268,7 @@ Override the preload path when the actual method name differs:
 
 ## CDP Tools
 
-31 built-in tools for DOM automation, interaction, observability, and multi-window support. These work on any Electron app — no IPC configuration required.
+33 built-in tools for DOM automation, interaction, observability, and multi-window support. These work on any Electron app — no IPC configuration required.
 
 <details>
 <summary><b>Connection & Targets (4 tools)</b></summary>
@@ -297,7 +298,7 @@ Override the preload path when the actual method name differs:
 </details>
 
 <details>
-<summary><b>Interaction (5 tools)</b></summary>
+<summary><b>Interaction (6 tools)</b></summary>
 <br>
 
 | Tool | Description |
@@ -307,6 +308,7 @@ Override the preload path when the actual method name differs:
 | `electron_fill` | Clear field contents and type new text (replaces) |
 | `electron_press_key` | Press special key (Enter, Tab, Escape, arrows, etc.) |
 | `electron_select_option` | Select option in `<select>` by value or visible text |
+| `electron_hover` | Hover over element, triggering CSS :hover and JS mouseenter events |
 
 </details>
 
@@ -326,7 +328,7 @@ Override the preload path when the actual method name differs:
 </details>
 
 <details>
-<summary><b>Navigation & Viewport (4 tools)</b></summary>
+<summary><b>Navigation & Viewport (5 tools)</b></summary>
 <br>
 
 | Tool | Description |
@@ -335,6 +337,7 @@ Override the preload path when the actual method name differs:
 | `electron_wait_for_selector` | Poll for element to appear (default timeout: 5s) |
 | `electron_set_viewport` | Override viewport metrics for responsive testing |
 | `electron_scroll` | Scroll page or element in a direction |
+| `electron_wait_for_network_idle` | Wait until no network requests are pending for N ms |
 
 </details>
 
@@ -419,7 +422,7 @@ Expose live app state that Claude can read on demand.
 
 | Value | Behavior |
 |:------|:---------|
-| `true` | Enable all 31 CDP tools |
+| `true` | Enable all 33 CDP tools |
 | `false` / omitted | CDP tools disabled |
 | `string[]` | Enable only the listed tool names |
 
@@ -569,7 +572,7 @@ Claude Code automatically loads the relevant skill when prompts match trigger ke
 
 ```
 src/
-├── cdp-tools/                # 31 CDP tool implementations
+├── cdp-tools/                # 33 CDP tool implementations
 │   ├── lifecycle.ts           # launch, connect, list_targets, switch_target
 │   ├── dom-query.ts           # query_selector, find_by_text, a11y_tree
 │   ├── interaction.ts         # click, type_text, fill, press_key, select_option
