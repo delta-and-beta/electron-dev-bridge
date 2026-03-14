@@ -1,8 +1,9 @@
 import type { CdpTool, ToolContext } from './types.js'
+import type { DevtoolsStore } from './devtools.js'
 import { evaluateSelector, toolResult } from './helpers.js'
 
 export function createNavigationTools(ctx: ToolContext): CdpTool[] {
-  const { bridge } = ctx
+  const { bridge, state } = ctx
 
   return [
     {
@@ -187,6 +188,63 @@ export function createNavigationTools(ctx: ToolContext): CdpTool[] {
 
         const finalUrl = await bridge.evaluate('window.location.href')
         return toolResult({ url: finalUrl, waitUntil })
+      },
+    },
+    {
+      definition: {
+        name: 'electron_wait_for_network_idle',
+        description:
+          'Wait until no network requests are pending for a specified idle period. Useful for waiting for data loading to complete after navigation or user actions.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            idleTime: {
+              type: 'number',
+              description: 'Milliseconds of no pending requests to consider idle. Default: 500.',
+            },
+            timeout: {
+              type: 'number',
+              description: 'Maximum time to wait in milliseconds. Default: 10000.',
+            },
+          },
+        },
+      },
+      handler: async ({
+        idleTime = 500,
+        timeout = 10000,
+      }: {
+        idleTime?: number
+        timeout?: number
+      } = {}) => {
+        bridge.ensureConnected()
+        const store = state.devtoolsStore as DevtoolsStore | null
+        if (!store) {
+          throw new Error('DevTools capture not active. Connect first with electron_connect or electron_launch.')
+        }
+
+        const start = Date.now()
+        let idleSince = store.pendingRequests.size === 0 ? Date.now() : 0
+
+        while (Date.now() - start < timeout) {
+          if (store.pendingRequests.size === 0) {
+            if (idleSince === 0) idleSince = Date.now()
+            if (Date.now() - idleSince >= idleTime) {
+              return toolResult({
+                idle: true,
+                elapsed: Date.now() - start,
+                pendingRequests: 0,
+              })
+            }
+          } else {
+            idleSince = 0
+          }
+          await new Promise(r => setTimeout(r, 50))
+        }
+
+        throw new Error(
+          `Network not idle after ${timeout}ms. ` +
+          `${store.pendingRequests.size} requests still pending.`
+        )
       },
     },
   ]

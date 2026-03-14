@@ -26,6 +26,7 @@ export interface NetworkEntry {
 export class DevtoolsStore {
   console: ConsoleEntry[] = []
   network: Map<string, NetworkEntry> = new Map()
+  pendingRequests: Set<string> = new Set()
   private attached = false
 
   attach(client: any): void {
@@ -49,6 +50,7 @@ export class DevtoolsStore {
         const oldest = this.network.keys().next().value!
         this.network.delete(oldest)
       }
+      this.pendingRequests.add(requestId)
       this.network.set(requestId, {
         requestId,
         method: request.method,
@@ -66,6 +68,7 @@ export class DevtoolsStore {
     })
 
     client.Network.loadingFinished(({ requestId, timestamp }: any) => {
+      this.pendingRequests.delete(requestId)
       const entry = this.network.get(requestId)
       if (entry) {
         entry.endTime = timestamp
@@ -74,6 +77,7 @@ export class DevtoolsStore {
     })
 
     client.Network.loadingFailed(({ requestId, errorText }: any) => {
+      this.pendingRequests.delete(requestId)
       const entry = this.network.get(requestId)
       if (entry) {
         entry.error = errorText
