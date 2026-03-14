@@ -115,5 +115,68 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
         return toolResult({ connected: true, port: targetPort })
       },
     },
+    {
+      definition: {
+        name: 'electron_list_targets',
+        description:
+          'List all available page targets (BrowserWindows) in the Electron app. Use to discover multiple windows before switching.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      handler: async () => {
+        const targets = await bridge.listTargets()
+        return toolResult({ targets, count: targets.length })
+      },
+    },
+    {
+      definition: {
+        name: 'electron_switch_target',
+        description:
+          'Switch the CDP connection to a different page target (BrowserWindow). Use electron_list_targets first to see available targets.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            targetId: {
+              type: 'string',
+              description: 'Target ID from electron_list_targets.',
+            },
+            urlPattern: {
+              type: 'string',
+              description: 'Regex pattern to match target URL. Used instead of targetId.',
+            },
+          },
+        },
+      },
+      handler: async ({
+        targetId,
+        urlPattern,
+      }: {
+        targetId?: string
+        urlPattern?: string
+      } = {}) => {
+        if (!targetId && !urlPattern) {
+          throw new Error('Provide either targetId or urlPattern.')
+        }
+
+        if (urlPattern) {
+          const targets = await bridge.listTargets()
+          const re = new RegExp(urlPattern, 'i')
+          const match = targets.find(t => re.test(t.url))
+          if (!match) {
+            throw new Error(`No target matching URL pattern: ${urlPattern}`)
+          }
+          targetId = match.id
+        }
+
+        await bridge.connectToTarget(targetId!)
+        attachDevtoolsStore(bridge, state)
+
+        const url = await bridge.evaluate('window.location.href')
+        const title = await bridge.evaluate('document.title')
+        return toolResult({ switched: true, targetId, url, title })
+      },
+    },
   ]
 }
