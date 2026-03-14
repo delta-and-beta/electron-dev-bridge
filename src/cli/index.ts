@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-const VERSION = '0.3.0'
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
+const { version: VERSION } = require('../../package.json')
 
 const command = process.argv[2]
 
