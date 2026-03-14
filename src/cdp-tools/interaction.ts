@@ -216,5 +216,59 @@ export function createInteractionTools(ctx: ToolContext): CdpTool[] {
         return toolResult(result)
       },
     },
+    {
+      definition: {
+        name: 'electron_fill',
+        description:
+          'Clear a text input and type new text. Selects all existing content first, then types the replacement. Use instead of electron_type_text when the field already has content.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            selector: {
+              type: 'string',
+              description: 'CSS selector of the input element.',
+            },
+            text: {
+              type: 'string',
+              description: 'Text to fill into the element.',
+            },
+          },
+          required: ['selector', 'text'],
+        },
+      },
+      handler: async ({ selector, text }: { selector: string; text: string }) => {
+        bridge.ensureConnected()
+
+        const client = bridge.getRawClient()
+
+        // Click to focus
+        const box = await getBoundingBox(bridge, selector)
+        const cx = box.x + box.width / 2
+        const cy = box.y + box.height / 2
+        await dispatchClick(client, cx, cy)
+
+        // Triple-click to select all existing content
+        await client.Input.dispatchMouseEvent({
+          type: 'mousePressed', x: cx, y: cy,
+          button: 'left', clickCount: 3,
+        })
+        await client.Input.dispatchMouseEvent({
+          type: 'mouseReleased', x: cx, y: cy,
+          button: 'left', clickCount: 3,
+        })
+
+        // Type replacement text (overwrites selection)
+        for (const char of text) {
+          await client.Input.dispatchKeyEvent({
+            type: 'keyDown', text: char, key: char, unmodifiedText: char,
+          })
+          await client.Input.dispatchKeyEvent({
+            type: 'keyUp', key: char,
+          })
+        }
+
+        return toolResult({ filled: true, selector, length: text.length })
+      },
+    },
   ]
 }
