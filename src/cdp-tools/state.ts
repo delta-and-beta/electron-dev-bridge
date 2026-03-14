@@ -110,5 +110,39 @@ export function createStateTools(ctx: ToolContext): CdpTool[] {
         return toolResult({ url })
       },
     },
+    {
+      definition: {
+        name: 'electron_evaluate',
+        description:
+          'Execute arbitrary JavaScript in the Electron renderer process and return the result. Use for inspecting app state, calling functions, or any operation not covered by other tools.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            expression: {
+              type: 'string',
+              description:
+                'JavaScript expression to evaluate. Can be any valid JS including async/await. The result is returned by value.',
+            },
+            awaitPromise: {
+              type: 'boolean',
+              description:
+                'Whether to await the result if it is a Promise. Default: true.',
+            },
+          },
+          required: ['expression'],
+        },
+      },
+      handler: async ({
+        expression,
+        awaitPromise = true,
+      }: {
+        expression: string
+        awaitPromise?: boolean
+      }) => {
+        bridge.ensureConnected()
+        const result = await bridge.evaluate(expression, awaitPromise)
+        return toolResult({ result })
+      },
+    },
   ]
 }
