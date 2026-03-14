@@ -1,3 +1,9 @@
 node_modules/
 dist/
 .screenshots/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx

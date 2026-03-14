@@ -23,7 +23,7 @@ import { defineConfig } from 'electron-dev-bridge'
 export default defineConfig({
   app: {
     name: 'linkedin-app',
-    path: '/Users/marchi-lau/Development/repos/delta-and-beta/linkedin-app',
+    path: '/path/to/your/electron-app',
     debugPort: 9229,
   },
 

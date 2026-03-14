@@ -13,7 +13,7 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const APP_PATH = resolve(
-  "/Users/marchi-lau/Development/repos/delta-and-beta/linkedin-app",
+  process.env.ELECTRON_APP_PATH || "../linkedin-app",
 );
 const ELECTRON_BIN = join(APP_PATH, "node_modules", ".bin", "electron");
 const DEBUG_PORT = 9229;
