@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const VERSION = '0.2.0'
+const VERSION = '0.3.0'
 
 const command = process.argv[2]
 
