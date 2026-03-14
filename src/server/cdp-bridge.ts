@@ -37,7 +37,17 @@ export class CdpBridge {
           this.client.Network.enable(),
         ])
 
-        this.client.on('disconnect', () => { this.client = null })
+        this.client.on('disconnect', () => {
+          this.client = null
+          // Attempt one auto-reconnect after a brief delay (covers HMR/reload)
+          setTimeout(() => {
+            if (!this.client) {
+              this.connect(1).catch(() => {
+                // Reconnect failed — client stays null, tools will prompt to reconnect
+              })
+            }
+          }, 1000)
+        })
         return
       } catch (err) {
         lastError = err as Error
