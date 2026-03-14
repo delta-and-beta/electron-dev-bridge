@@ -142,5 +142,52 @@ export function createNavigationTools(ctx: ToolContext): CdpTool[] {
         return toolResult(result)
       },
     },
+    {
+      definition: {
+        name: 'electron_navigate',
+        description:
+          'Navigate the Electron app to a URL. Waits for the page to load before returning.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            url: {
+              type: 'string',
+              description: 'URL to navigate to.',
+            },
+            waitUntil: {
+              type: 'string',
+              description:
+                'When to consider navigation complete: "load" (default) or "domcontentloaded".',
+            },
+          },
+          required: ['url'],
+        },
+      },
+      handler: async ({
+        url,
+        waitUntil = 'load',
+      }: {
+        url: string
+        waitUntil?: string
+      }) => {
+        bridge.ensureConnected()
+
+        const client = bridge.getRawClient()
+
+        const loadPromise = waitUntil === 'domcontentloaded'
+          ? new Promise<void>(resolve => {
+              client.Page.domContentEventFired(() => resolve())
+            })
+          : new Promise<void>(resolve => {
+              client.Page.loadEventFired(() => resolve())
+            })
+
+        await client.Page.navigate({ url })
+        await loadPromise
+
+        const finalUrl = await bridge.evaluate('window.location.href')
+        return toolResult({ url: finalUrl, waitUntil })
+      },
+    },
   ]
 }
