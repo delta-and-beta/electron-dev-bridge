@@ -270,5 +270,36 @@ export function createInteractionTools(ctx: ToolContext): CdpTool[] {
         return toolResult({ filled: true, selector, length: text.length })
       },
     },
+    {
+      definition: {
+        name: 'electron_hover',
+        description:
+          'Hover over an element by CSS selector. Triggers CSS :hover states and JavaScript mouseenter/mouseover events.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            selector: {
+              type: 'string',
+              description: 'CSS selector of the element to hover over.',
+            },
+          },
+          required: ['selector'],
+        },
+      },
+      handler: async ({ selector }: { selector: string }) => {
+        bridge.ensureConnected()
+
+        const box = await getBoundingBox(bridge, selector)
+        const x = box.x + box.width / 2
+        const y = box.y + box.height / 2
+
+        const client = bridge.getRawClient()
+        await client.Input.dispatchMouseEvent({
+          type: 'mouseMoved', x, y,
+        })
+
+        return toolResult({ hovered: true, selector, x, y })
+      },
+    },
   ]
 }
