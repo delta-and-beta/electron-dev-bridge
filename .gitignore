@@ -7,3 +7,7 @@ dist/
 *.key
 *.p12
 *.pfx
+CLAUDE.md
+SKILL.md
+references/
+docs/retros/
