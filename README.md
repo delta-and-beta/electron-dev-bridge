@@ -1,4 +1,4 @@
-# electron-mcp-sdk
+# electron-dev-bridge
 
 Expose your Electron app's IPC handlers as [MCP](https://modelcontextprotocol.io/) tools for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Optionally includes 22 built-in CDP tools for DOM inspection, interaction, and screenshots.
 
@@ -6,7 +6,7 @@ Expose your Electron app's IPC handlers as [MCP](https://modelcontextprotocol.io
 Claude Code (terminal)
   |  MCP protocol (stdio)
   v
-electron-mcp-sdk (MCP server)
+electron-dev-bridge (MCP server)
   |  Chrome DevTools Protocol
   v
 Electron app (--remote-debugging-port=9229)
@@ -16,7 +16,7 @@ Electron app (--remote-debugging-port=9229)
 
 ```bash
 # In your Electron project directory:
-npm install electron-mcp-sdk
+npm install electron-dev-bridge
 
 # Scaffold a config from your source code
 npx electron-mcp init
@@ -44,7 +44,7 @@ Your Electron app needs to be running with `--remote-debugging-port` enabled. Th
 The `init` command generates `electron-mcp.config.ts` by scanning your source for `ipcMain.handle()` calls and Zod schema exports. Edit it to refine descriptions, add schemas, or configure CDP tools.
 
 ```ts
-import { defineConfig } from 'electron-mcp-sdk'
+import { defineConfig } from 'electron-dev-bridge'
 import { profileQuerySchema } from './src/main/ipc-schemas'
 
 export default defineConfig({
@@ -254,7 +254,7 @@ tools: {
 If your app defines Zod schemas for IPC input validation, import them in your config to get typed tool inputs:
 
 ```ts
-import { defineConfig } from 'electron-mcp-sdk'
+import { defineConfig } from 'electron-dev-bridge'
 import { profileQuerySchema, crawlJobSchema } from './src/main/ipc-schemas'
 
 export default defineConfig({
@@ -292,12 +292,12 @@ The `skills/` directory contains sample [Claude Code skills](https://docs.anthro
 
 ```bash
 # Copy all sample skills
-cp -r node_modules/electron-mcp-sdk/skills/* .claude/skills/
+cp -r node_modules/electron-dev-bridge/skills/* .claude/skills/
 
 # Or copy individual skills
-cp -r node_modules/electron-mcp-sdk/skills/electron-app-dev .claude/skills/
-cp -r node_modules/electron-mcp-sdk/skills/electron-e2e-testing .claude/skills/
-cp -r node_modules/electron-mcp-sdk/skills/electron-debugging .claude/skills/
+cp -r node_modules/electron-dev-bridge/skills/electron-app-dev .claude/skills/
+cp -r node_modules/electron-dev-bridge/skills/electron-e2e-testing .claude/skills/
+cp -r node_modules/electron-dev-bridge/skills/electron-debugging .claude/skills/
 ```
 
 | Skill | Triggers on | What it covers |

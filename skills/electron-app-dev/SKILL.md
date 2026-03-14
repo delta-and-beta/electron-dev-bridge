@@ -1,19 +1,19 @@
 ---
 name: electron-app-dev
 description: >
-  Develop and automate Electron apps using the electron-mcp-sdk bridge.
+  Develop and automate Electron apps using the electron-dev-bridge bridge.
   Trigger on: Electron app, desktop app, UI automation, DOM inspection,
   IPC handler, screenshot, BrowserWindow, webContents, CDP tools,
   electron-mcp, preload script, contextBridge.
 ---
 
-# Electron App Development with electron-mcp-sdk
+# Electron App Development with electron-dev-bridge
 
 Use the MCP bridge to connect, inspect, interact with, and screenshot your Electron app directly from Claude Code.
 
 ## Prerequisites
 
-1. Install: `npm install electron-mcp-sdk`
+1. Install: `npm install electron-dev-bridge`
 2. Generate config: `npx electron-mcp init`
 3. Register: `npx electron-mcp register`
 4. Start your app with `--remote-debugging-port=9229`
@@ -98,7 +98,7 @@ Never use arbitrary sleep/delays.
 
 ## IPC Tools
 
-If the app uses electron-mcp-sdk with configured IPC handlers, tools are named by replacing colons with underscores:
+If the app uses electron-dev-bridge with configured IPC handlers, tools are named by replacing colons with underscores:
 
 | IPC channel | MCP tool name | Preload path |
 |-------------|---------------|--------------|

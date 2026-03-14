@@ -113,7 +113,7 @@ function generateConfigSource(
   imports: Map<string, Set<string>>,
 ): string {
   const importLines: string[] = [
-    `import { defineConfig } from 'electron-mcp-sdk'`,
+    `import { defineConfig } from 'electron-dev-bridge'`,
   ]
 
   for (const [path, names] of imports) {

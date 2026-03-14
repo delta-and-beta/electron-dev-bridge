@@ -19,7 +19,7 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
             appPath: {
               type: 'string',
               description:
-                'Path to the Electron app directory. Defaults to ELECTRON_APP_PATH env var.',
+                'Path to the Electron app directory. Defaults to the path set in the SDK config.',
             },
             args: {
               type: 'array',
@@ -30,13 +30,13 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
         },
       },
       handler: async ({ appPath, args = [] }: { appPath?: string; args?: string[] } = {}) => {
-        const defaultAppPath = appConfig.path || ''
-        const resolvedAppPath = resolve(appPath || defaultAppPath)
-        if (!resolvedAppPath) {
+        const rawPath = appPath || appConfig.path
+        if (!rawPath) {
           throw new Error(
-            'No app path provided. Pass appPath or set ELECTRON_APP_PATH env var.',
+            'No app path provided. Pass appPath or set app.path in your config.',
           )
         }
+        const resolvedAppPath = resolve(rawPath)
 
         const debugPort = appConfig.debugPort || 9229
         const electronBin =
@@ -88,7 +88,7 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
             port: {
               type: 'number',
               description:
-                'CDP debugging port. Defaults to ELECTRON_DEBUG_PORT env var or 9229.',
+                'CDP debugging port. Defaults to app.debugPort in config or 9229.',
             },
           },
         },

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+const VERSION = '0.1.0'
+
 const command = process.argv[2]
 
 switch (command) {
@@ -25,8 +27,15 @@ switch (command) {
     await validate()
     break
   }
+  case '--version':
+  case '-v':
+    console.log(VERSION)
+    break
+  case '--help':
+  case '-h':
+  case 'help':
   default:
-    console.log(`electron-mcp-sdk v0.1.0
+    console.log(`electron-dev-bridge v${VERSION}
 
 Commands:
   serve [config]    Start the MCP server (default)

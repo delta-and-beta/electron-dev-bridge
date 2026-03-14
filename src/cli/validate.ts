@@ -49,8 +49,17 @@ export async function validate(): Promise<void> {
     console.log(`${resourceCount} resources defined`)
   }
 
+  let cdpCount = 0
   if (config.cdpTools) {
-    const cdpCount = Array.isArray(config.cdpTools) ? config.cdpTools.length : 22
+    const { getCdpTools } = await import('../cdp-tools/index.js')
+    const { CdpBridge } = await import('../server/cdp-bridge.js')
+    const dummyBridge = new CdpBridge()
+    let allCdpTools = getCdpTools(dummyBridge, config.app, config.screenshots)
+    if (Array.isArray(config.cdpTools)) {
+      const allowed = new Set(config.cdpTools)
+      allCdpTools = allCdpTools.filter(t => allowed.has(t.definition.name))
+    }
+    cdpCount = allCdpTools.length
     console.log(`CDP tools: enabled (${cdpCount} tools)`)
   } else {
     console.log('CDP tools: disabled')
@@ -62,6 +71,5 @@ export async function validate(): Promise<void> {
     }
   }
 
-  const cdpTotal = config.cdpTools ? (Array.isArray(config.cdpTools) ? config.cdpTools.length : 22) : 0
-  console.log(`\nTotal: ${toolCount + cdpTotal} MCP tools ready`)
+  console.log(`\nTotal: ${toolCount + cdpCount} MCP tools ready`)
 }

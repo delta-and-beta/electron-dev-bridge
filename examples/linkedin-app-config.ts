@@ -1,5 +1,5 @@
 /**
- * Example electron-mcp-sdk config for the linkedin-app.
+ * Example electron-dev-bridge config for the linkedin-app.
  *
  * All 38 IPC handlers are mapped as tools.  Where the auto-derived preload
  * path (channel "domain:action" -> window.electronAPI.domain.action) differs
@@ -9,7 +9,7 @@
  * uncomment them when using inside the linkedin-app project.
  */
 
-import { defineConfig } from 'electron-mcp-sdk'
+import { defineConfig } from 'electron-dev-bridge'
 
 // Uncomment to wire up Zod schemas for input validation:
 // import {

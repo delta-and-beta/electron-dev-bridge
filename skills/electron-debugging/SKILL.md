@@ -1,13 +1,13 @@
 ---
 name: electron-debugging
 description: >
-  Debug and troubleshoot Electron apps via electron-mcp-sdk bridge tools.
+  Debug and troubleshoot Electron apps via electron-dev-bridge bridge tools.
   Trigger on: debug, bug, broken, not working, UI issue, element not found,
   blank screen, can't connect, crash, stale, timeout, click not working,
   missing element, wrong text, layout broken.
 ---
 
-# Electron App Debugging with electron-mcp-sdk
+# Electron App Debugging with electron-dev-bridge
 
 Systematic debugging workflows for Electron apps using the MCP bridge.
 

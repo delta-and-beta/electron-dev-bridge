@@ -146,6 +146,14 @@ export async function startServer(config: ElectronMcpConfig): Promise<void> {
   registerToolHandlers(server, bridge, ipcTools, cdpToolDefs)
   registerResourceHandlers(server, bridge, resources)
 
+  const cleanup = async () => {
+    await bridge.close()
+    await server.close()
+    process.exit(0)
+  }
+  process.on('SIGINT', cleanup)
+  process.on('SIGTERM', cleanup)
+
   const transport = new StdioServerTransport()
   await server.connect(transport)
 }

@@ -1,7 +1,7 @@
 {
-  "name": "electron-mcp-sdk",
+  "name": "electron-dev-bridge",
   "version": "0.1.0",
-  "description": "Expose Electron IPC handlers as MCP tools for Claude Code",
+  "description": "Expose Electron IPC handlers as MCP tools for Claude Code, with 22 built-in CDP tools for DOM automation",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,6 +20,28 @@
     "test": "node --test dist/**/*.test.js",
     "lint": "tsc --noEmit"
   },
+  "keywords": [
+    "electron",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-code",
+    "cdp",
+    "chrome-devtools-protocol",
+    "ipc",
+    "testing",
+    "automation",
+    "desktop-app"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicholasgriffintn/electron-dev-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nicholasgriffintn/electron-dev-bridge/issues"
+  },
+  "homepage": "https://github.com/nicholasgriffintn/electron-dev-bridge#readme",
+  "author": "",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "chrome-remote-interface": "^0.33.2",
@@ -39,8 +61,10 @@
   },
   "files": [
     "dist",
-    "templates",
-    "skills"
+    "skills",
+    "LICENSE",
+    "!dist/**/*.test.js",
+    "!dist/**/*.test.d.ts"
   ],
   "license": "MIT",
   "devDependencies": {

@@ -1,13 +1,13 @@
 ---
 name: electron-e2e-testing
 description: >
-  End-to-end testing workflows for Electron apps via electron-mcp-sdk.
+  End-to-end testing workflows for Electron apps via electron-dev-bridge.
   Trigger on: test, e2e, end-to-end, regression, form testing,
   UI verification, test flow, smoke test, integration test,
   visual regression, form fill, submit, assertion.
 ---
 
-# Electron E2E Testing with electron-mcp-sdk
+# Electron E2E Testing with electron-dev-bridge
 
 Structured test patterns for verifying Electron app behavior using the MCP bridge tools.
 

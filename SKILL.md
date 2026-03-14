@@ -278,7 +278,7 @@ SDK mode and CDP mode are complementary -- set `cdpTools: true` in your config t
 
 ```bash
 # 1. Install the SDK in your Electron project
-npm install electron-mcp-sdk
+npm install electron-dev-bridge
 
 # 2. Scaffold a config from your source code
 npx electron-mcp init
@@ -294,7 +294,7 @@ After `init`, review and edit the generated `electron-mcp.config.ts`, then run `
 The config file (`electron-mcp.config.ts`) uses `defineConfig()` for type-safe configuration:
 
 ```ts
-import { defineConfig } from 'electron-mcp-sdk'
+import { defineConfig } from 'electron-dev-bridge'
 
 export default defineConfig({
   app: {

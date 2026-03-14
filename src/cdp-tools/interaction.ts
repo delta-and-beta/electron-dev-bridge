@@ -190,7 +190,7 @@ export function createInteractionTools(ctx: ToolContext): CdpTool[] {
         const result = await bridge.evaluate(`
           (() => {
             const select = document.querySelector(${JSON.stringify(selector)});
-            if (!select) throw new Error('Select element not found: ${selector.replace(/'/g, "\\'")}');
+            if (!select) throw new Error('Select element not found: ' + ${JSON.stringify(selector)});
             if (select.tagName !== 'SELECT') throw new Error('Element is not a <select>');
 
             const value = ${JSON.stringify(value)};

@@ -1,5 +1,8 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert'
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { defineConfig } from '../index.js'
 import { buildTools } from '../server/tool-builder.js'
 import { buildResources } from '../server/resource-builder.js'
@@ -111,33 +114,93 @@ describe('resource-builder', () => {
 })
 
 // ---------------------------------------------------------------------------
-// scanner (using real linkedin-app source)
+// scanner (using temp files with inline fixtures)
 // ---------------------------------------------------------------------------
 
 describe('scanner', () => {
-  const linkedinMainPath =
-    '/Users/marchi-lau/Development/repos/delta-and-beta/linkedin-app/src/main/index.ts'
-  const linkedinSchemaPath =
-    '/Users/marchi-lau/Development/repos/delta-and-beta/linkedin-app/src/main/ipc-schemas.ts'
+  let tmpDir: string
+
+  const MAIN_FIXTURE = `
+import { ipcMain } from 'electron'
+
+ipcMain.handle('profiles:query', async (event, args) => {
+  return db.profiles.find(args)
+})
+
+ipcMain.handle('profiles:get', async (event, id) => {
+  return db.profiles.findById(id)
+})
+
+ipcMain.handle('tags:add', async (event, args) => {
+  return db.tags.create(args)
+})
+
+ipcMain.handle('crawl:start', async (event, args) => {
+  return crawlManager.start(args)
+})
+
+ipcMain.handle('settings:get', async () => {
+  return store.getAll()
+})
+`
+
+  const SCHEMA_FIXTURE = `
+import { z } from 'zod'
+
+export const profileQuerySchema = z.object({
+  query: z.string().optional(),
+  page: z.number().default(1),
+})
+
+export const crawlJobSchema = z.object({
+  url: z.string().url(),
+  depth: z.number().default(2),
+})
+
+export const tagAddSchema = z.object({
+  profileId: z.string(),
+  tag: z.string(),
+})
+
+export const settingsUpdateSchema = z.object({
+  key: z.string(),
+  value: z.unknown(),
+})
+`
+
+  // Create temp files before tests
+  tmpDir = mkdtempSync(join(tmpdir(), 'electron-mcp-test-'))
+  const mainPath = join(tmpDir, 'main.ts')
+  const schemaPath = join(tmpDir, 'ipc-schemas.ts')
+  writeFileSync(mainPath, MAIN_FIXTURE)
+  writeFileSync(schemaPath, SCHEMA_FIXTURE)
 
   it('detects ipcMain.handle calls in source code', () => {
-    const handlers = scanForHandlers(linkedinMainPath)
+    const handlers = scanForHandlers(join(tmpDir, 'main.ts'))
 
-    assert.ok(handlers.length >= 30, `Expected >= 30 handlers, got ${handlers.length}`)
+    assert.strictEqual(handlers.length, 5)
 
     const channels = handlers.map((h) => h.channel)
     assert.ok(channels.includes('profiles:query'), 'Missing profiles:query')
     assert.ok(channels.includes('tags:add'), 'Missing tags:add')
     assert.ok(channels.includes('crawl:start'), 'Missing crawl:start')
+    assert.ok(channels.includes('settings:get'), 'Missing settings:get')
   })
 
   it('detects Zod schema exports', () => {
-    const schemas = scanForSchemas(linkedinSchemaPath)
+    const schemas = scanForSchemas(join(tmpDir, 'ipc-schemas.ts'))
 
-    assert.ok(schemas.length >= 4, `Expected >= 4 schemas, got ${schemas.length}`)
+    assert.strictEqual(schemas.length, 4)
 
     const names = schemas.map((s) => s.name)
     assert.ok(names.includes('profileQuerySchema'), 'Missing profileQuerySchema')
     assert.ok(names.includes('crawlJobSchema'), 'Missing crawlJobSchema')
+    assert.ok(names.includes('tagAddSchema'), 'Missing tagAddSchema')
+    assert.ok(names.includes('settingsUpdateSchema'), 'Missing settingsUpdateSchema')
+  })
+
+  // Cleanup
+  it('cleanup temp files', () => {
+    rmSync(tmpDir, { recursive: true, force: true })
   })
 })
