@@ -1,7 +1,7 @@
 # electron-mcp-sdk Design Document
 
 **Date:** 2026-02-28
-**Status:** Approved
+**Status:** Implemented (package renamed to `electron-dev-bridge` on 2026-03-14)
 
 ## Overview
 

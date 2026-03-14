@@ -2,6 +2,8 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
+**Status:** Implemented
+
 **Goal:** Build a portable MCP server toolkit that lets Claude Code drive any Electron app via CDP — 25 tools for DOM inspection, interaction, screenshots, plus a preload script, screenshot diff CLI, SKILL.md with playbooks, and reference/example docs.
 
 **Architecture:** Single-file MCP server (`mcp-server.js`) connects to Electron apps via `chrome-remote-interface` over CDP WebSocket. Uses `@modelcontextprotocol/sdk` with stdio transport. Optional preload script enhances DOM access via `contextBridge`. Screenshots saved to disk with paths returned to Claude.

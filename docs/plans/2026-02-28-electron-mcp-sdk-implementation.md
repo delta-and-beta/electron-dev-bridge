@@ -2,7 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build an npm package (`electron-mcp-sdk`) that Electron apps install to expose their IPC handlers as MCP tools, with optional CDP tools from electron-dev-bridge bundled in.
+**Status:** Implemented (package renamed to `electron-dev-bridge` on 2026-03-14)
+
+**Goal:** Build an npm package (`electron-dev-bridge`, formerly `electron-mcp-sdk`) that Electron apps install to expose their IPC handlers as MCP tools, with optional CDP tools from electron-dev-bridge bundled in.
 
 **Architecture:** Config-driven standalone MCP server connecting via CDP to Electron apps. Reads `electron-mcp.config.ts`, converts Zod schemas to JSON Schema for MCP tool definitions, routes tool calls through the app's preload bridge (`window.electronAPI.*`). CLI scaffolds config via source scanning.
 
