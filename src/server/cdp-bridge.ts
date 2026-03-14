@@ -22,7 +22,9 @@ export class CdpBridge {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const targets = await CDP.List({ port: this.port })
-        const page = targets.find((t: any) => t.type === 'page')
+        const page = targets.find((t: any) =>
+          t.type === 'page' && !t.url.startsWith('devtools://')
+        )
         if (!page) throw new Error('No page target found among CDP targets')
 
         this.client = await CDP({ target: page, port: this.port })

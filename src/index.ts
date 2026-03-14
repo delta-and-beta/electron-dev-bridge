@@ -36,3 +36,7 @@ export interface ElectronMcpConfig {
 export function defineConfig(config: ElectronMcpConfig): ElectronMcpConfig {
   return config
 }
+
+export { CdpBridge } from './server/cdp-bridge.js'
+export { getCdpTools } from './cdp-tools/index.js'
+export type { CdpTool, CdpToolDefinition } from './cdp-tools/types.js'
