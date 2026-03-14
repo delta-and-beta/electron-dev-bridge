@@ -18,6 +18,7 @@ export interface NetworkEntry {
   status?: number
   statusText?: string
   error?: string
+  body?: string
   startTime: number
   endTime?: number
   duration?: number
@@ -28,10 +29,12 @@ export class DevtoolsStore {
   network: Map<string, NetworkEntry> = new Map()
   pendingRequests: Set<string> = new Set()
   private attached = false
+  private client: any = null
 
   attach(client: any): void {
     if (this.attached) return
     this.attached = true
+    this.client = client
 
     client.Runtime.consoleAPICalled(({ type, args, timestamp }: any) => {
       const message = (args || [])
@@ -73,6 +76,20 @@ export class DevtoolsStore {
       if (entry) {
         entry.endTime = timestamp
         entry.duration = Math.round((timestamp - entry.startTime) * 1000)
+
+        // Capture response body (fire-and-forget, truncated)
+        this.client?.Network.getResponseBody({ requestId }).then(
+          ({ body }: { body: string }) => {
+            if (body) {
+              entry.body = body.length > MAX_BODY_LENGTH
+                ? body.slice(0, MAX_BODY_LENGTH) + '...'
+                : body
+            }
+          },
+          () => {
+            // Body not available (e.g. redirects, cancelled) — ignore
+          },
+        )
       }
     })
 
@@ -211,6 +228,10 @@ export function createDevtoolsTools(ctx: ToolContext): CdpTool[] {
               type: 'string',
               description: 'ISO timestamp — only return requests after this time.',
             },
+            includeBody: {
+              type: 'boolean',
+              description: 'Include response body in output (truncated to 1KB). Default: false.',
+            },
           },
         },
       },
@@ -220,12 +241,14 @@ export function createDevtoolsTools(ctx: ToolContext): CdpTool[] {
         errorsOnly,
         limit = 50,
         since,
+        includeBody = false,
       }: {
         urlPattern?: string
         method?: string
         errorsOnly?: boolean
         limit?: number
         since?: string
+        includeBody?: boolean
       } = {}) => {
         bridge.ensureConnected()
         const store = state.devtoolsStore as DevtoolsStore
@@ -263,6 +286,7 @@ export function createDevtoolsTools(ctx: ToolContext): CdpTool[] {
           status: e.status,
           statusText: e.statusText,
           error: e.error,
+          ...(includeBody && e.body ? { body: e.body } : {}),
           duration: e.duration != null ? `${e.duration}ms` : undefined,
           timestamp: new Date(e.startTime * 1000).toISOString(),
         }))
