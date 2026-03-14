@@ -155,10 +155,18 @@ export async function startServer(config: ElectronMcpConfig): Promise<void> {
     }
   }
 
+  if (config.cdpTools) {
+    try {
+      await bridge.connect()
+    } catch {
+      // App may not be running yet — tools will prompt to connect
+    }
+  }
+
   const resources = buildResources(config)
 
   const server = new Server(
-    { name: config.app.name, version: '0.1.0' },
+    { name: config.app.name, version: '0.2.0' },
     { capabilities: {
       tools: {},
       ...(resources.length > 0 ? { resources: {} } : {}),

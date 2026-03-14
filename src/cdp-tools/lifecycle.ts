@@ -106,6 +106,9 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
       },
       handler: async ({ port }: { port?: number } = {}) => {
         const targetPort = port || appConfig.debugPort || 9229
+        if (bridge.connected) {
+          return toolResult({ connected: true, port: targetPort, message: 'Already connected' })
+        }
         bridge.setPort(targetPort)
         await bridge.connect()
         attachDevtoolsStore(bridge, state)

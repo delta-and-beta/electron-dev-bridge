@@ -17,6 +17,8 @@ export class CdpBridge {
   }
 
   async connect(maxRetries = 10): Promise<void> {
+    if (this.client) return
+
     let lastError: Error | undefined
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -28,17 +30,19 @@ export class CdpBridge {
         if (!page) throw new Error('No page target found among CDP targets')
 
         this.client = await CDP({ target: page, port: this.port })
-        await this.client.Runtime.enable()
-        await this.client.DOM.enable()
-        await this.client.Page.enable()
-        await this.client.Network.enable()
+        await Promise.all([
+          this.client.Runtime.enable(),
+          this.client.DOM.enable(),
+          this.client.Page.enable(),
+          this.client.Network.enable(),
+        ])
 
         this.client.on('disconnect', () => { this.client = null })
         return
       } catch (err) {
         lastError = err as Error
         if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, 1000))
+          await new Promise(r => setTimeout(r, 300))
         }
       }
     }
