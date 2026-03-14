@@ -98,6 +98,47 @@ export class CdpBridge {
     return this.client!
   }
 
+  async listTargets(): Promise<Array<{ id: string; type: string; title: string; url: string }>> {
+    const targets = await CDP.List({ port: this.port })
+    return targets
+      .filter((t: any) => t.type === 'page' && !t.url.startsWith('devtools://'))
+      .map((t: any, i: number) => ({
+        id: t.id,
+        index: i,
+        type: t.type,
+        title: t.title,
+        url: t.url,
+      }))
+  }
+
+  async connectToTarget(targetId: string): Promise<void> {
+    if (this.client) {
+      await this.client.close()
+      this.client = null
+    }
+
+    const targets = await CDP.List({ port: this.port })
+    const target = targets.find((t: any) => t.id === targetId)
+    if (!target) throw new Error(`Target not found: ${targetId}`)
+
+    this.client = await CDP({ target, port: this.port })
+    await Promise.all([
+      this.client.Runtime.enable(),
+      this.client.DOM.enable(),
+      this.client.Page.enable(),
+      this.client.Network.enable(),
+    ])
+
+    this.client.on('disconnect', () => {
+      this.client = null
+      setTimeout(() => {
+        if (!this.client) {
+          this.connect(1).catch(() => {})
+        }
+      }, 1000)
+    })
+  }
+
   async close(): Promise<void> {
     if (this.client) {
       await this.client.close()
