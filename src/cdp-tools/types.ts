@@ -2,6 +2,7 @@ import type { ChildProcess } from 'node:child_process'
 
 import type { AppConfig } from '../index.js'
 import type { CdpBridge } from '../server/cdp-bridge.js'
+import type { DevtoolsStore } from './devtools.js'
 
 export interface CdpToolDefinition {
   name: string
@@ -22,5 +23,6 @@ export interface ToolContext {
   state: {
     screenshotCounter: number
     electronProcess: ChildProcess | null
+    devtoolsStore: DevtoolsStore | null
   }
 }

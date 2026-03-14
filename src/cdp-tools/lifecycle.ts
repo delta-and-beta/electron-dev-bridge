@@ -2,7 +2,17 @@ import { spawn } from 'node:child_process'
 import { join, resolve } from 'node:path'
 
 import type { CdpTool, ToolContext } from './types.js'
+import { DevtoolsStore } from './devtools.js'
 import { toolResult } from './helpers.js'
+
+function attachDevtoolsStore(bridge: any, state: ToolContext['state']): void {
+  if (state.devtoolsStore) {
+    state.devtoolsStore.detach()
+  }
+  const store = new DevtoolsStore()
+  store.attach(bridge.getRawClient())
+  state.devtoolsStore = store
+}
 
 export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
   const { bridge, appConfig, state } = ctx
@@ -68,6 +78,7 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
         }
 
         await bridge.connect()
+        attachDevtoolsStore(bridge, state)
 
         return toolResult({
           pid: child.pid,
@@ -97,6 +108,7 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
         const targetPort = port || appConfig.debugPort || 9229
         bridge.setPort(targetPort)
         await bridge.connect()
+        attachDevtoolsStore(bridge, state)
         return toolResult({ connected: true, port: targetPort })
       },
     },

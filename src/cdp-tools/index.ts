@@ -2,6 +2,7 @@ import type { AppConfig, ScreenshotConfig } from '../index.js'
 import type { CdpBridge } from '../server/cdp-bridge.js'
 import type { CdpTool, ToolContext } from './types.js'
 
+import { createDevtoolsTools } from './devtools.js'
 import { createDomQueryTools } from './dom-query.js'
 import { createInteractionTools } from './interaction.js'
 import { createLifecycleTools } from './lifecycle.js'
@@ -24,6 +25,7 @@ export function getCdpTools(
     state: {
       screenshotCounter: 0,
       electronProcess: null,
+      devtoolsStore: null,
     },
   }
 
@@ -34,5 +36,6 @@ export function getCdpTools(
     ...createStateTools(ctx),
     ...createNavigationTools(ctx),
     ...createVisualTools(ctx),
+    ...createDevtoolsTools(ctx),
   ]
 }
