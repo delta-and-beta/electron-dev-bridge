@@ -10,13 +10,14 @@ import { CdpBridge } from './cdp-bridge.js'
 import { buildTools, type ResolvedTool } from './tool-builder.js'
 import { buildResources, type ResolvedResource } from './resource-builder.js'
 import { getCdpTools, type CdpTool } from '../cdp-tools/index.js'
-import type { ElectronMcpConfig } from '../index.js'
+import type { ElectronMcpConfig, CustomTool } from '../index.js'
 
 function registerToolHandlers(
   server: Server,
   bridge: CdpBridge,
   ipcTools: ResolvedTool[],
   cdpToolDefs: CdpTool[],
+  customTools: CustomTool[],
 ): void {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
@@ -26,6 +27,11 @@ function registerToolHandlers(
         inputSchema: t.inputSchema,
       })),
       ...cdpToolDefs.map(t => t.definition),
+      ...customTools.map(t => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      })),
     ],
   }))
 
@@ -36,6 +42,10 @@ function registerToolHandlers(
   const cdpHandlerMap = new Map<string, (args: any) => Promise<any>>()
   for (const tool of cdpToolDefs) {
     cdpHandlerMap.set(tool.definition.name, tool.handler)
+  }
+  const customHandlerMap = new Map<string, CustomTool>()
+  for (const tool of customTools) {
+    customHandlerMap.set(tool.name, tool)
   }
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -67,6 +77,18 @@ function registerToolHandlers(
     if (cdpHandler) {
       try {
         return await cdpHandler(args || {})
+      } catch (err: any) {
+        return {
+          content: [{ type: 'text', text: `Error: ${err.message}` }],
+          isError: true,
+        }
+      }
+    }
+
+    const customTool = customHandlerMap.get(name)
+    if (customTool) {
+      try {
+        return await customTool.handler((args || {}) as Record<string, unknown>)
       } catch (err: any) {
         return {
           content: [{ type: 'text', text: `Error: ${err.message}` }],
@@ -143,7 +165,8 @@ export async function startServer(config: ElectronMcpConfig): Promise<void> {
     }}
   )
 
-  registerToolHandlers(server, bridge, ipcTools, cdpToolDefs)
+  const customTools = config.customTools || []
+  registerToolHandlers(server, bridge, ipcTools, cdpToolDefs, customTools)
   registerResourceHandlers(server, bridge, resources)
 
   const cleanup = async () => {
