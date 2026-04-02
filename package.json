@@ -1,6 +1,6 @@
 {
   "name": "electron-dev-bridge",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Expose Electron IPC handlers as MCP tools for Claude Code, with 33 built-in CDP tools for DOM automation, screenshots, console/network capture, and multi-window support",
   "type": "module",
   "main": "dist/index.js",
