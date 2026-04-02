@@ -1,9 +1,21 @@
 import { spawn } from 'node:child_process'
+import { createServer } from 'node:net'
 import { join, resolve } from 'node:path'
 
 import type { CdpTool, ToolContext } from './types.js'
 import { DevtoolsStore } from './devtools.js'
 import { toolResult } from './helpers.js'
+
+function getRandomPort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = createServer()
+    srv.listen(0, () => {
+      const port = (srv.address() as any).port
+      srv.close(() => resolve(port))
+    })
+    srv.on('error', reject)
+  })
+}
 
 function attachDevtoolsStore(bridge: any, state: ToolContext['state']): void {
   if (state.devtoolsStore) {
@@ -48,7 +60,7 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
         }
         const resolvedAppPath = resolve(rawPath)
 
-        const debugPort = appConfig.debugPort || 9229
+        const debugPort = appConfig.debugPort || await getRandomPort()
         const electronBin =
           appConfig.electronBin || join(resolvedAppPath, 'node_modules', '.bin', 'electron')
 
@@ -77,6 +89,7 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
           )
         }
 
+        bridge.setPort(debugPort)
         await bridge.connect()
         attachDevtoolsStore(bridge, state)
 
