@@ -144,5 +144,63 @@ export function createStateTools(ctx: ToolContext): CdpTool[] {
         return toolResult({ result })
       },
     },
+    {
+      definition: {
+        name: 'electron_get_page_summary',
+        description:
+          'Get a structured overview of the current page in one call: title, URL, counts of forms/buttons/links/images, visible error messages, loading indicators, and meta info. Use this first to understand a page before deciding what to do.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      handler: async () => {
+        bridge.ensureConnected()
+        const summary = await bridge.evaluate(`
+          (() => {
+            const inputs = document.querySelectorAll('input, textarea, select');
+            const buttons = document.querySelectorAll('button, [role="button"], input[type="submit"]');
+            const links = document.querySelectorAll('a[href]');
+            const images = document.querySelectorAll('img');
+            const forms = document.querySelectorAll('form');
+            const errors = document.querySelectorAll('[class*="error"], [class*="Error"], [role="alert"], .invalid-feedback, .form-error');
+            const loading = document.querySelectorAll('[class*="loading"], [class*="spinner"], [aria-busy="true"]');
+            const modals = document.querySelectorAll('[role="dialog"], [class*="modal"][class*="show"], [class*="modal"][class*="open"]');
+
+            const errorMessages = [];
+            errors.forEach(el => {
+              const text = el.textContent?.trim();
+              if (text && text.length < 200) errorMessages.push(text);
+            });
+
+            return {
+              title: document.title,
+              url: window.location.href,
+              counts: {
+                forms: forms.length,
+                inputs: inputs.length,
+                buttons: buttons.length,
+                links: links.length,
+                images: images.length,
+              },
+              errors: errorMessages.slice(0, 10),
+              hasErrors: errorMessages.length > 0,
+              isLoading: loading.length > 0,
+              hasModals: modals.length > 0,
+              viewport: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                scrollHeight: document.documentElement.scrollHeight,
+              },
+              meta: {
+                charset: document.characterSet,
+                lang: document.documentElement.lang || null,
+              },
+            };
+          })()
+        `)
+        return toolResult(summary)
+      },
+    },
   ]
 }
