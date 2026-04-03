@@ -167,5 +167,105 @@ export function createBatchTools(ctx: ToolContext): CdpTool[] {
         })
       },
     },
+    {
+      definition: {
+        name: 'electron_assert',
+        description:
+          'Verify one or more conditions about the current page state. Returns pass/fail for each assertion with actual values. Use for testing and validation.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            assertions: {
+              type: 'array',
+              description: 'Array of assertion objects.',
+              items: {
+                type: 'object',
+                properties: {
+                  selector: { type: 'string', description: 'CSS selector of element to check.' },
+                  text: { type: 'string', description: 'Expected innerText (substring match).' },
+                  value: { type: 'string', description: 'Expected input value (exact match).' },
+                  attribute: { type: 'string', description: 'Attribute name to check.' },
+                  equals: { type: 'string', description: 'Expected attribute value.' },
+                  visible: { type: 'boolean', description: 'Assert element is visible (true) or hidden (false).' },
+                  exists: { type: 'boolean', description: 'Assert element exists (true) or does not exist (false).' },
+                  url: { type: 'string', description: 'Assert current URL contains this string.' },
+                  title: { type: 'string', description: 'Assert page title contains this string.' },
+                },
+              },
+            },
+          },
+          required: ['assertions'],
+        },
+      },
+      handler: async ({ assertions }: { assertions: Array<Record<string, any>> }) => {
+        bridge.ensureConnected()
+
+        const results: Array<{ index: number; pass: boolean; assertion: string; expected: any; actual: any }> = []
+
+        for (let i = 0; i < assertions.length; i++) {
+          const a = assertions[i]
+          try {
+            if (a.url) {
+              const actual = await bridge.evaluate('window.location.href')
+              const pass = actual.includes(a.url)
+              results.push({ index: i, pass, assertion: 'url contains', expected: a.url, actual })
+
+            } else if (a.title) {
+              const actual = await bridge.evaluate('document.title')
+              const pass = actual.includes(a.title)
+              results.push({ index: i, pass, assertion: 'title contains', expected: a.title, actual })
+
+            } else if (a.selector && a.exists !== undefined) {
+              const actual = await bridge.evaluate(`!!document.querySelector(${JSON.stringify(a.selector)})`)
+              const pass = actual === a.exists
+              results.push({ index: i, pass, assertion: a.exists ? 'exists' : 'not exists', expected: a.exists, actual })
+
+            } else if (a.selector && a.visible !== undefined) {
+              const actual = await bridge.evaluate(`
+                (() => {
+                  const el = document.querySelector(${JSON.stringify(a.selector)});
+                  if (!el) return false;
+                  const style = window.getComputedStyle(el);
+                  return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+                })()
+              `)
+              const pass = actual === a.visible
+              results.push({ index: i, pass, assertion: a.visible ? 'visible' : 'hidden', expected: a.visible, actual })
+
+            } else if (a.selector && a.text) {
+              const actual = await bridge.evaluate(`document.querySelector(${JSON.stringify(a.selector)})?.innerText || ''`)
+              const pass = actual.includes(a.text)
+              results.push({ index: i, pass, assertion: 'text contains', expected: a.text, actual: actual.slice(0, 200) })
+
+            } else if (a.selector && a.value !== undefined) {
+              const actual = await bridge.evaluate(`document.querySelector(${JSON.stringify(a.selector)})?.value ?? null`)
+              const pass = actual === a.value
+              results.push({ index: i, pass, assertion: 'value equals', expected: a.value, actual })
+
+            } else if (a.selector && a.attribute && a.equals !== undefined) {
+              const actual = await bridge.evaluate(`document.querySelector(${JSON.stringify(a.selector)})?.getAttribute(${JSON.stringify(a.attribute)})`)
+              const pass = actual === a.equals
+              results.push({ index: i, pass, assertion: `attribute ${a.attribute} equals`, expected: a.equals, actual })
+
+            } else {
+              results.push({ index: i, pass: false, assertion: 'unknown', expected: null, actual: 'Unrecognized assertion format' })
+            }
+          } catch (err: any) {
+            results.push({ index: i, pass: false, assertion: 'error', expected: null, actual: err.message })
+          }
+        }
+
+        const passed = results.filter(r => r.pass).length
+        const failed = results.filter(r => !r.pass).length
+
+        return toolResult({
+          passed,
+          failed,
+          total: assertions.length,
+          allPassed: failed === 0,
+          results,
+        })
+      },
+    },
   ]
 }
