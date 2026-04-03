@@ -9,7 +9,7 @@ import { toolResult } from './helpers.js'
 // is passed through the esc() function which uses textContent assignment for
 // proper HTML entity encoding. No raw user input reaches innerHTML directly.
 
-function generateHtml(data: {
+export function generateHtml(data: {
   errors: any[]
   consoleLogs: any[]
   failedRequests: any[]
