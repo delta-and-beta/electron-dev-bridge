@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test App — electron-dev-bridge</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 24px; }
+  h1 { color: #00d9c0; margin-bottom: 4px; }
+  .subtitle { color: #888; margin-bottom: 24px; font-size: 14px; }
+  h2 { color: #58a6ff; margin: 24px 0 12px; font-size: 18px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+  section { background: #16213e; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  label { display: block; margin-bottom: 4px; font-size: 13px; color: #aaa; }
+  input, select, textarea { display: block; width: 100%; padding: 8px 12px; margin-bottom: 12px; background: #0f3460; border: 1px solid #444; border-radius: 4px; color: #e0e0e0; font-size: 14px; }
+  input:invalid { border-color: #f85149; }
+  input:disabled { opacity: 0.5; }
+  button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 8px; margin-bottom: 8px; }
+  .btn-primary { background: #00d9c0; color: #000; }
+  .btn-danger { background: #f85149; color: #fff; }
+  .btn-secondary { background: #333; color: #e0e0e0; }
+  .success { color: #3fb950; padding: 8px; background: #3fb95020; border-radius: 4px; margin-top: 8px; display: none; }
+  .error-display { color: #f85149; padding: 8px; background: #f8514920; border-radius: 4px; margin-top: 8px; display: none; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #333; font-size: 13px; }
+  th { color: #888; font-weight: 600; }
+  .tooltip-trigger { position: relative; display: inline-block; }
+  .tooltip-trigger .tooltip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #333; padding: 6px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
+  .tooltip-trigger:hover .tooltip { display: block; }
+  a { color: #58a6ff; text-decoration: none; }
+  #output { font-family: monospace; font-size: 12px; background: #0d1117; padding: 12px; border-radius: 4px; max-height: 200px; overflow-y: auto; margin-top: 8px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<h1>Test App</h1>
+<p class="subtitle">electron-dev-bridge test fixture — exercises all 41 tools</p>
+
+<h2>Contact Form</h2>
+<section>
+  <form id="contact-form">
+    <label for="name">Name <span style="color: #f85149">*</span></label>
+    <input type="text" id="name" name="name" required placeholder="Jane Doe" data-testid="name-input">
+    <label for="email">Email <span style="color: #f85149">*</span></label>
+    <input type="email" id="email" name="email" required placeholder="jane@example.com" data-testid="email-input">
+    <label for="role">Role</label>
+    <select id="role" name="role" data-testid="role-select">
+      <option value="user">User</option>
+      <option value="admin">Admin</option>
+      <option value="editor">Editor</option>
+    </select>
+    <label for="message">Message</label>
+    <textarea id="message" name="message" rows="3" placeholder="Optional message..." data-testid="message-input"></textarea>
+    <label for="disabled-field">Disabled Field</label>
+    <input type="text" id="disabled-field" disabled value="Cannot edit this">
+    <button type="submit" class="btn-primary" data-testid="submit-btn">Submit</button>
+    <button type="reset" class="btn-secondary">Reset</button>
+  </form>
+  <div class="success" id="form-success" data-testid="form-success">Form submitted successfully!</div>
+  <div class="error-display" id="form-error" data-testid="form-error"></div>
+</section>
+
+<h2>Interactive Elements</h2>
+<section>
+  <button class="btn-primary" data-testid="counter-btn" id="counter-btn">Clicked: 0</button>
+  <div class="tooltip-trigger" data-testid="tooltip-trigger">
+    <button class="btn-secondary">Hover me</button>
+    <span class="tooltip" data-testid="tooltip-text">This is a tooltip!</span>
+  </div>
+  <button class="btn-secondary" data-testid="toggle-btn" id="toggle-btn">Toggle Section</button>
+  <div id="toggle-content" style="display: none; margin-top: 8px; padding: 12px; background: #0f3460; border-radius: 4px;" data-testid="toggle-content">
+    This content is toggled. You found it!
+  </div>
+  <button class="btn-secondary" data-testid="open-settings-btn" id="open-settings-btn">Open Settings Window</button>
+</section>
+
+<h2>Data Display</h2>
+<section>
+  <table data-testid="profiles-table" id="profiles-table">
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+    <tbody id="profiles-body"></tbody>
+  </table>
+</section>
+
+<h2>Error Generators</h2>
+<section>
+  <p style="margin-bottom: 12px; color: #888; font-size: 13px;">These buttons intentionally cause errors for testing error capture tools.</p>
+  <button class="btn-danger" data-testid="throw-error-btn" id="throw-error-btn">Throw Uncaught Error</button>
+  <button class="btn-danger" data-testid="console-error-btn" id="console-error-btn">Console Error</button>
+  <button class="btn-danger" data-testid="network-error-btn" id="network-error-btn">Failed Network Request</button>
+  <button class="btn-danger" data-testid="promise-reject-btn" id="promise-reject-btn">Unhandled Promise Rejection</button>
+</section>
+
+<h2>Navigation</h2>
+<section>
+  <a href="#section-a" data-testid="link-a">Go to Section A</a> |
+  <a href="#section-b" data-testid="link-b">Go to Section B</a>
+</section>
+
+<h2>IPC Output</h2>
+<section>
+  <button class="btn-primary" data-testid="query-profiles-btn" id="query-profiles-btn">Query Profiles via IPC</button>
+  <button class="btn-secondary" data-testid="get-settings-btn" id="get-settings-btn">Get Settings via IPC</button>
+  <div id="output" data-testid="output"></div>
+</section>
+
+<div id="section-a" style="margin-top: 40px;"><h2>Section A</h2><section><p data-testid="section-a-text">You navigated to Section A.</p></section></div>
+<div id="section-b" style="margin-top: 40px;"><h2>Section B</h2><section><p data-testid="section-b-text">You navigated to Section B.</p></section></div>
+
+<script>
+  // Counter
+  var count = 0
+  document.getElementById('counter-btn').addEventListener('click', function() {
+    count++
+    document.getElementById('counter-btn').textContent = 'Clicked: ' + count
+  })
+
+  // Toggle
+  document.getElementById('toggle-btn').addEventListener('click', function() {
+    var el = document.getElementById('toggle-content')
+    el.style.display = el.style.display === 'none' ? 'block' : 'none'
+  })
+
+  // Form submit
+  document.getElementById('contact-form').addEventListener('submit', function(e) {
+    e.preventDefault()
+    var name = document.getElementById('name').value
+    var email = document.getElementById('email').value
+    if (!name || !email) {
+      document.getElementById('form-error').textContent = 'Name and email are required'
+      document.getElementById('form-error').style.display = 'block'
+      document.getElementById('form-success').style.display = 'none'
+      return
+    }
+    document.getElementById('form-success').style.display = 'block'
+    document.getElementById('form-error').style.display = 'none'
+    console.log('Form submitted:', { name: name, email: email })
+  })
+
+  // Error generators
+  document.getElementById('throw-error-btn').addEventListener('click', function() {
+    throw new Error('Test uncaught error from button click')
+  })
+  document.getElementById('console-error-btn').addEventListener('click', function() {
+    console.error('Test console.error message')
+  })
+  document.getElementById('network-error-btn').addEventListener('click', function() {
+    fetch('https://nonexistent.invalid/api/data').catch(function() {})
+  })
+  document.getElementById('promise-reject-btn').addEventListener('click', function() {
+    Promise.reject(new Error('Test unhandled promise rejection'))
+  })
+
+  // Open settings window via IPC
+  document.getElementById('open-settings-btn').addEventListener('click', function() {
+    window.electronAPI.app.openSettings()
+  })
+
+  // IPC queries
+  document.getElementById('query-profiles-btn').addEventListener('click', function() {
+    window.electronAPI.profiles.query().then(function(profiles) {
+      document.getElementById('output').textContent = JSON.stringify(profiles, null, 2)
+    })
+  })
+  document.getElementById('get-settings-btn').addEventListener('click', function() {
+    window.electronAPI.settings.get().then(function(settings) {
+      document.getElementById('output').textContent = JSON.stringify(settings, null, 2)
+    })
+  })
+
+  // Load profiles table using safe DOM methods
+  window.electronAPI.profiles.query().then(function(profiles) {
+    var tbody = document.getElementById('profiles-body')
+    profiles.forEach(function(p) {
+      var tr = document.createElement('tr')
+      var tdName = document.createElement('td')
+      tdName.textContent = p.name
+      var tdEmail = document.createElement('td')
+      tdEmail.textContent = p.email
+      var tdRole = document.createElement('td')
+      tdRole.textContent = p.role
+      tr.appendChild(tdName)
+      tr.appendChild(tdEmail)
+      tr.appendChild(tdRole)
+      tbody.appendChild(tr)
+    })
+  })
+</script>
+
+</body>
+</html>
