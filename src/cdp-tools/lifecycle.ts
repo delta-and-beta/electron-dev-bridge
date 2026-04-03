@@ -6,14 +6,26 @@ import type { CdpTool, ToolContext } from './types.js'
 import { DevtoolsStore } from './devtools.js'
 import { toolResult } from './helpers.js'
 
-function getRandomPort(): Promise<number> {
+function getAvailablePort(preferred?: number): Promise<number> {
   return new Promise((resolve, reject) => {
     const srv = createServer()
-    srv.listen(0, () => {
+    srv.listen(preferred || 0, () => {
       const port = (srv.address() as any).port
       srv.close(() => resolve(port))
     })
-    srv.on('error', reject)
+    srv.on('error', () => {
+      if (preferred) {
+        // Preferred port occupied — fall back to random
+        const fallback = createServer()
+        fallback.listen(0, () => {
+          const port = (fallback.address() as any).port
+          fallback.close(() => resolve(port))
+        })
+        fallback.on('error', reject)
+      } else {
+        reject(new Error('Failed to allocate a port'))
+      }
+    })
   })
 }
 
@@ -60,7 +72,7 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
         }
         const resolvedAppPath = resolve(rawPath)
 
-        const debugPort = appConfig.debugPort || await getRandomPort()
+        const debugPort = await getAvailablePort(appConfig.debugPort)
         const electronBin =
           appConfig.electronBin || join(resolvedAppPath, 'node_modules', '.bin', 'electron')
 
