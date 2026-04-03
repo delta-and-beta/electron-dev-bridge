@@ -8,11 +8,11 @@ export interface ResolvedTool {
   preloadPath: string
 }
 
-function channelToToolName(channel: string): string {
+export function channelToToolName(channel: string): string {
   return channel.replace(/:/g, '_')
 }
 
-function channelToPreloadPath(channel: string): string {
+export function channelToPreloadPath(channel: string): string {
   const [domain, action] = channel.split(':')
   return `window.electronAPI.${domain}.${action}`
 }
