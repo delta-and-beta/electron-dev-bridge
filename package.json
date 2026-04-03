@@ -17,7 +17,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "node --test dist/**/*.test.js",
+    "test": "node --test dist/tests/integration.test.js dist/tests/unit.test.js",
+    "test:e2e": "node --test dist/tests/e2e.test.js",
+    "test:all": "node --test dist/**/*.test.js",
     "lint": "tsc --noEmit"
   },
   "keywords": [
