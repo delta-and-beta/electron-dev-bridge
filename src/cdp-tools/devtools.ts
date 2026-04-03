@@ -3,6 +3,7 @@ import { toolResult } from './helpers.js'
 
 const MAX_CONSOLE_ENTRIES = 1000
 const MAX_NETWORK_ENTRIES = 500
+const MAX_ERROR_ENTRIES = 500
 const MAX_BODY_LENGTH = 1024
 
 export interface ConsoleEntry {
@@ -24,17 +25,108 @@ export interface NetworkEntry {
   duration?: number
 }
 
+export interface ErrorEntry {
+  message: string
+  stack?: string
+  source: 'exception' | 'unhandledrejection' | 'console.error' | 'network'
+  url?: string
+  line?: number
+  column?: number
+  timestamp: number
+  fingerprint: string
+}
+
+export interface ErrorGroup {
+  fingerprint: string
+  message: string
+  source: string
+  count: number
+  firstSeen: number
+  lastSeen: number
+  stack?: string
+  samples: Array<{ timestamp: string; url?: string; line?: number }>
+}
+
+function errorFingerprint(message: string): string {
+  return message
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
+    .replace(/\b\d+\b/g, '<n>')
+    .replace(/https?:\/\/[^\s)]+/g, '<url>')
+    .trim()
+}
+
 export class DevtoolsStore {
   console: ConsoleEntry[] = []
   network: Map<string, NetworkEntry> = new Map()
+  errors: ErrorEntry[] = []
   pendingRequests: Set<string> = new Set()
   private attached = false
   private client: any = null
+
+  private addError(entry: ErrorEntry): void {
+    this.errors.push(entry)
+    if (this.errors.length > MAX_ERROR_ENTRIES) {
+      this.errors.splice(0, this.errors.length - MAX_ERROR_ENTRIES)
+    }
+  }
+
+  getGroupedErrors(): ErrorGroup[] {
+    const groups = new Map<string, ErrorGroup>()
+    for (const err of this.errors) {
+      const existing = groups.get(err.fingerprint)
+      if (existing) {
+        existing.count++
+        existing.lastSeen = err.timestamp
+        if (existing.samples.length < 3) {
+          existing.samples.push({
+            timestamp: new Date(err.timestamp * 1000).toISOString(),
+            url: err.url,
+            line: err.line,
+          })
+        }
+      } else {
+        groups.set(err.fingerprint, {
+          fingerprint: err.fingerprint,
+          message: err.message,
+          source: err.source,
+          count: 1,
+          firstSeen: err.timestamp,
+          lastSeen: err.timestamp,
+          stack: err.stack,
+          samples: [{
+            timestamp: new Date(err.timestamp * 1000).toISOString(),
+            url: err.url,
+            line: err.line,
+          }],
+        })
+      }
+    }
+    return Array.from(groups.values()).sort((a, b) => b.lastSeen - a.lastSeen)
+  }
 
   attach(client: any): void {
     if (this.attached) return
     this.attached = true
     this.client = client
+
+    client.Runtime.exceptionThrown(({ timestamp, exceptionDetails }: any) => {
+      const ex = exceptionDetails
+      const message = ex.exception?.description || ex.text || 'Unknown error'
+      const stack = ex.exception?.description || ex.stackTrace?.callFrames
+        ?.map((f: any) => `  at ${f.functionName || '<anonymous>'} (${f.url}:${f.lineNumber}:${f.columnNumber})`)
+        .join('\n')
+
+      this.addError({
+        message,
+        stack,
+        source: 'exception',
+        url: ex.url,
+        line: ex.lineNumber,
+        column: ex.columnNumber,
+        timestamp,
+        fingerprint: errorFingerprint(message),
+      })
+    })
 
     client.Runtime.consoleAPICalled(({ type, args, timestamp }: any) => {
       const message = (args || [])
@@ -45,6 +137,15 @@ export class DevtoolsStore {
 
       if (this.console.length > MAX_CONSOLE_ENTRIES) {
         this.console.splice(0, this.console.length - MAX_CONSOLE_ENTRIES)
+      }
+
+      if (type === 'error') {
+        this.addError({
+          message,
+          source: 'console.error',
+          timestamp,
+          fingerprint: errorFingerprint(message),
+        })
       }
     })
 
@@ -93,11 +194,18 @@ export class DevtoolsStore {
       }
     })
 
-    client.Network.loadingFailed(({ requestId, errorText }: any) => {
+    client.Network.loadingFailed(({ requestId, errorText, timestamp }: any) => {
       this.pendingRequests.delete(requestId)
       const entry = this.network.get(requestId)
       if (entry) {
         entry.error = errorText
+        this.addError({
+          message: `Network error: ${errorText} — ${entry.method} ${entry.url}`,
+          source: 'network',
+          url: entry.url,
+          timestamp: timestamp || entry.startTime,
+          fingerprint: errorFingerprint(`Network error: ${errorText} — ${entry.method}`),
+        })
       }
     })
   }
@@ -114,9 +222,14 @@ export class DevtoolsStore {
     this.network.clear()
   }
 
+  clearErrors(): void {
+    this.errors = []
+  }
+
   clearAll(): void {
     this.clearConsole()
     this.clearNetwork()
+    this.clearErrors()
   }
 
   getNetworkEntries(): NetworkEntry[] {
@@ -304,7 +417,7 @@ export function createDevtoolsTools(ctx: ToolContext): CdpTool[] {
           properties: {
             type: {
               type: 'string',
-              enum: ['all', 'console', 'network'],
+              enum: ['all', 'console', 'network', 'errors'],
               description: 'What to clear. Default: all.',
             },
           },
@@ -316,6 +429,7 @@ export function createDevtoolsTools(ctx: ToolContext): CdpTool[] {
 
         if (type === 'console') store.clearConsole()
         else if (type === 'network') store.clearNetwork()
+        else if (type === 'errors') store.clearErrors()
         else store.clearAll()
 
         return toolResult({ cleared: type })
@@ -333,17 +447,98 @@ export function createDevtoolsTools(ctx: ToolContext): CdpTool[] {
       },
       handler: async () => {
         const store = state.devtoolsStore as DevtoolsStore
-        if (!store) return toolResult({ console: 0, network: 0, capturing: false })
+        if (!store) return toolResult({ console: 0, network: 0, errors: 0, capturing: false })
 
         return toolResult({
           console: store.console.length,
           network: store.network.size,
+          errors: store.errors.length,
+          errorGroups: store.getGroupedErrors().length,
           capturing: true,
           limits: {
             maxConsole: MAX_CONSOLE_ENTRIES,
             maxNetwork: MAX_NETWORK_ENTRIES,
+            maxErrors: MAX_ERROR_ENTRIES,
           },
         })
+      },
+    },
+    {
+      definition: {
+        name: 'electron_get_errors',
+        description:
+          'Get a Sentry-like error report: uncaught exceptions, console.error calls, and network failures — grouped by fingerprint with counts, stack traces, and first/last seen timestamps.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            source: {
+              type: 'string',
+              description: 'Filter by source: exception, console.error, network. Comma-separated for multiple.',
+            },
+            search: {
+              type: 'string',
+              description: 'Filter by error message content (case-insensitive).',
+            },
+            since: {
+              type: 'string',
+              description: 'ISO timestamp — only return errors after this time.',
+            },
+            limit: {
+              type: 'number',
+              description: 'Max error groups to return. Default: 50.',
+            },
+          },
+        },
+      },
+      handler: async ({
+        source,
+        search,
+        since,
+        limit = 50,
+      }: {
+        source?: string
+        search?: string
+        since?: string
+        limit?: number
+      } = {}) => {
+        bridge.ensureConnected()
+        const store = state.devtoolsStore as DevtoolsStore
+        if (!store) return toolResult({ groups: [], totalErrors: 0, totalGroups: 0 })
+
+        let groups = store.getGroupedErrors()
+
+        if (source) {
+          const sources = new Set(source.split(',').map(s => s.trim().toLowerCase()))
+          groups = groups.filter(g => sources.has(g.source))
+        }
+
+        if (search) {
+          const lower = search.toLowerCase()
+          groups = groups.filter(g => g.message.toLowerCase().includes(lower))
+        }
+
+        if (since) {
+          const sinceTs = new Date(since).getTime() / 1000
+          groups = groups.filter(g => g.lastSeen >= sinceTs)
+        }
+
+        const totalGroups = groups.length
+        const totalErrors = groups.reduce((sum, g) => sum + g.count, 0)
+
+        const result = groups.slice(0, limit).map(g => ({
+          fingerprint: g.fingerprint,
+          message: g.message.length > MAX_BODY_LENGTH
+            ? g.message.slice(0, MAX_BODY_LENGTH) + '...'
+            : g.message,
+          source: g.source,
+          count: g.count,
+          firstSeen: new Date(g.firstSeen * 1000).toISOString(),
+          lastSeen: new Date(g.lastSeen * 1000).toISOString(),
+          stack: g.stack,
+          samples: g.samples,
+        }))
+
+        return toolResult({ groups: result, totalErrors, totalGroups })
       },
     },
   ]
