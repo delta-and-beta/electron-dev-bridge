@@ -2,6 +2,7 @@ import type { AppConfig, ScreenshotConfig } from '../index.js'
 import type { CdpBridge } from '../server/cdp-bridge.js'
 import type { CdpTool, ToolContext } from './types.js'
 
+import { createBatchTools } from './batch.js'
 import { createDevtoolsTools } from './devtools.js'
 import { createDomQueryTools } from './dom-query.js'
 import { createInteractionTools } from './interaction.js'
@@ -37,5 +38,6 @@ export function getCdpTools(
     ...createNavigationTools(ctx),
     ...createVisualTools(ctx),
     ...createDevtoolsTools(ctx),
+    ...createBatchTools(ctx),
   ]
 }
