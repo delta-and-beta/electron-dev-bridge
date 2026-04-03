@@ -202,5 +202,78 @@ export function createStateTools(ctx: ToolContext): CdpTool[] {
         return toolResult(summary)
       },
     },
+    {
+      definition: {
+        name: 'electron_get_form_state',
+        description:
+          'Get all form fields with their current values, types, labels, validation states, and attributes. Use to understand form structure before automation.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            selector: {
+              type: 'string',
+              description: 'CSS selector of a specific form. If omitted, scans all forms on the page.',
+            },
+          },
+        },
+      },
+      handler: async ({ selector }: { selector?: string } = {}) => {
+        bridge.ensureConnected()
+        const formState = await bridge.evaluate(`
+          (() => {
+            const scope = ${selector ? `document.querySelector(${JSON.stringify(selector)})` : 'document'};
+            if (!scope) return { error: 'Form not found', fields: [] };
+
+            const fields = [];
+            const inputs = scope.querySelectorAll('input, textarea, select');
+
+            inputs.forEach((el, i) => {
+              const label = el.labels?.[0]?.textContent?.trim()
+                || el.getAttribute('aria-label')
+                || el.getAttribute('placeholder')
+                || el.getAttribute('name')
+                || null;
+
+              const field = {
+                index: i,
+                tag: el.tagName.toLowerCase(),
+                type: el.type || null,
+                name: el.name || null,
+                id: el.id || null,
+                label,
+                value: el.value || '',
+                checked: el.type === 'checkbox' || el.type === 'radio' ? el.checked : undefined,
+                required: el.required,
+                disabled: el.disabled,
+                readOnly: el.readOnly || false,
+                valid: el.validity?.valid ?? true,
+                validationMessage: el.validationMessage || null,
+                selector: el.id ? '#' + el.id
+                  : el.name ? '[name="' + el.name + '"]'
+                  : el.getAttribute('data-testid') ? '[data-testid="' + el.getAttribute('data-testid') + '"]'
+                  : null,
+              };
+
+              if (el.tagName === 'SELECT') {
+                field.options = Array.from(el.options).map(o => ({
+                  value: o.value,
+                  text: o.textContent?.trim(),
+                  selected: o.selected,
+                }));
+              }
+
+              fields.push(field);
+            });
+
+            return {
+              formCount: scope === document ? document.querySelectorAll('form').length : 1,
+              fieldCount: fields.length,
+              fields,
+            };
+          })()
+        `)
+        return toolResult(formState)
+      },
+    },
   ]
 }
