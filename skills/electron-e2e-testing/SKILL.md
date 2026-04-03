@@ -9,173 +9,138 @@ description: >
 
 # Electron E2E Testing with electron-dev-bridge
 
-Structured test patterns for verifying Electron app behavior using the MCP bridge tools.
+Structured test patterns using the MCP bridge. 41 tools available.
 
-## Test Pattern: Launch, Wait, Act, Assert, Screenshot
+## Test Pattern: Batch Execute + Assert
 
-Every test follows this structure:
-
-```
-1. electron_launch / electron_connect     -- establish connection
-2. electron_wait_for_selector             -- wait for ready state
-3. electron_click / electron_type_text    -- perform actions
-4. electron_wait_for_selector             -- wait for result
-5. electron_get_text / electron_get_value -- assert expected state
-6. electron_screenshot                    -- capture evidence
-```
-
-## Playbook: Basic Interaction Test
-
-**Goal:** Verify a button click produces the expected result.
+The fastest pattern — combine actions and verification in minimal calls:
 
 ```
 # 1. Connect
 electron_connect
 
-# 2. Wait for the target element
-electron_wait_for_selector  selector="[data-testid='submit-btn']"  timeout=5000
+# 2. Understand the page
+electron_get_page_summary
 
-# 3. Click
-electron_click  selector="[data-testid='submit-btn']"
+# 3. Snapshot before action
+electron_diff_state  mode="snapshot"
 
-# 4. Wait for the result
-electron_wait_for_selector  selector="[data-testid='result-message']"  timeout=5000
+# 4. Execute steps in one call
+electron_execute_steps  steps=[
+  {"wait": "[data-testid='form']"},
+  {"fill": {"selector": "#email", "text": "test@example.com"}},
+  {"fill": {"selector": "#name", "text": "Jane Doe"}},
+  {"click": "[type='submit']"},
+  {"wait": ".success-message"},
+  {"screenshot": true}
+]
 
-# 5. Assert
-electron_get_text  selector="[data-testid='result-message']"
-# Expected: "Success" or similar
+# 5. Assert results
+electron_assert  assertions=[
+  {"selector": ".success-message", "text": "Saved"},
+  {"selector": "#email", "value": "test@example.com"},
+  {"url": "/dashboard"}
+]
 
-# 6. Evidence
-electron_screenshot
+# 6. Check what changed
+electron_diff_state  mode="diff"
 ```
-
-**Pass criteria:** `electron_get_text` returns the expected string. Screenshot shows correct UI state.
 
 ## Playbook: Form Fill & Submit
 
-**Goal:** Complete a form and verify submission.
-
 ```
-# 1. Connect and wait for form
-electron_connect
-electron_wait_for_selector  selector="form"
+# 1. Discover form structure
+electron_get_form_state  selector="form"
 
-# 2. Discover fields
-electron_get_accessibility_tree  maxDepth=5
+# 2. Fill all fields in one batch
+electron_execute_steps  steps=[
+  {"fill": {"selector": "#name", "text": "Jane Doe"}},
+  {"fill": {"selector": "#email", "text": "jane@example.com"}},
+  {"click": "[type='submit']"}
+]
 
-# 3. Fill text inputs
-electron_type_text  selector="#name"  text="Jane Doe"
-electron_type_text  selector="#email"  text="jane@example.com"
+# 3. Wait for response
+electron_wait_for_network_idle  idleTime=500
 
-# 4. Fill dropdown
-electron_select_option  selector="#role"  value="admin"
-
-# 5. Screenshot before submit (evidence of filled state)
-electron_screenshot
-
-# 6. Submit
-electron_click  selector="[type='submit']"
-
-# 7. Wait for result
-electron_wait_for_selector  selector=".success-message"  timeout=10000
-
-# 8. Assert
-electron_get_text  selector=".success-message"
-# Expected: contains "submitted" or "saved"
-
-# 9. Screenshot after submit
-electron_screenshot
+# 4. Assert
+electron_assert  assertions=[
+  {"selector": ".success", "text": "submitted"},
+  {"selector": ".error", "exists": false}
+]
 ```
-
-**Pass criteria:** Success message appears. Both before/after screenshots look correct.
 
 ## Playbook: Visual Regression
 
-**Goal:** Detect unintended UI changes after a code modification.
-
 ```
-# Phase 1: Capture baseline (before changes)
+# Phase 1: Capture baseline
 electron_connect
 electron_wait_for_selector  selector="{YOUR_APP_ROOT}"
 electron_screenshot
-# Save as baseline -- note the returned file path
+# Note the returned file path as baseline
 
-# Phase 2: After making code changes, restart app
+# Phase 2: After code changes, restart
 electron_launch  appPath="/path/to/{YOUR_APP}"
 electron_wait_for_selector  selector="{YOUR_APP_ROOT}"
 electron_screenshot
-# Save as current -- note the returned file path
+# Note the returned file path as current
 
 # Phase 3: Compare
 electron_compare_screenshots  pathA="baseline.png"  pathB="current.png"
 # Returns: { identical: false, diffPercent: 0.5, totalBytes: 120000, diffBytes: 600 }
 ```
 
-**Thresholds** (note: this is a byte-level diff, not pixel-aware):
-- `< 1%` diff: likely acceptable (compression variance, anti-aliasing)
-- `1-5%` diff: review the screenshot -- may be intentional
-- `> 5%` diff: likely a regression, investigate
+**Thresholds** (note: byte-level diff, not pixel-aware):
+- `< 1%` diff: likely acceptable
+- `1-5%` diff: review the screenshot
+- `> 5%` diff: likely a regression
 
 ## Playbook: Multi-Page Flow
 
-**Goal:** Test a workflow spanning multiple views/pages.
-
 ```
-# Step 1: Login page
-electron_connect
-electron_wait_for_selector  selector="#login-form"
-electron_type_text  selector="#username"  text="testuser"
-electron_type_text  selector="#password"  text="testpass"
-electron_click  selector="[data-testid='login-btn']"
-electron_screenshot
+# Step 1: Login
+electron_execute_steps  steps=[
+  {"wait": "#login-form"},
+  {"fill": {"selector": "#username", "text": "testuser"}},
+  {"fill": {"selector": "#password", "text": "testpass"}},
+  {"click": "[data-testid='login-btn']"},
+  {"wait": "[data-testid='dashboard']"}
+]
 
-# Step 2: Dashboard (after login)
-electron_wait_for_selector  selector="[data-testid='dashboard']"  timeout=10000
-electron_get_text  selector="[data-testid='welcome-msg']"
-# Assert: contains "testuser"
-electron_screenshot
+# Step 2: Assert login success
+electron_assert  assertions=[
+  {"selector": "[data-testid='welcome-msg']", "text": "testuser"},
+  {"url": "/dashboard"}
+]
 
-# Step 3: Navigate to settings
-electron_click  selector="[data-testid='settings-link']"
-electron_wait_for_selector  selector="[data-testid='settings-page']"
-electron_screenshot
-
-# Step 4: Verify and return
-electron_get_url
-# Assert: URL contains "/settings"
+# Step 3: Navigate and verify
+electron_execute_steps  steps=[
+  {"click": "[data-testid='settings-link']"},
+  {"wait": "[data-testid='settings-page']"},
+  {"screenshot": true}
+]
 ```
 
-**Pass criteria:** Each step transitions correctly. No errors. URLs and text match expectations.
+## Playbook: Error Monitoring During Test
+
+```
+# Before test: clear previous errors
+electron_clear_devtools_data
+
+# Run your test actions...
+electron_execute_steps  steps=[...]
+
+# After test: check for errors
+electron_get_errors
+# If errors found, generate full report
+electron_error_report
+```
 
 ## Key Practices
 
-### Always wait, never sleep
-Use `electron_wait_for_selector` between every action that changes the UI. This eliminates race conditions and makes tests deterministic.
-
-### Screenshot at checkpoints
-Capture screenshots at key moments: before actions, after actions, on errors. These serve as test evidence.
-
-### Use data-testid selectors
-Prefer `[data-testid="..."]` selectors for test stability. They survive refactors and style changes.
-
-### Assert with get_text / get_value
-Use `electron_get_text` and `electron_get_value` to verify expected content, not just visual inspection.
-
-### Handle timeouts as failures
-If `electron_wait_for_selector` times out, the element didn't appear. This is a test failure -- report it with the last screenshot for debugging context.
-
-## IPC-Based Assertions
-
-When the app has IPC tools configured, use them for deeper assertions. Tool names depend on your app's config — these are examples:
-
-```
-# After a form submit, verify via IPC (example tool names)
-profiles_query  query="Jane Doe"
-# Assert: returned array contains the submitted profile
-
-# Check app state directly (example tool name)
-session_getStatus
-# Assert: status is "authenticated"
-```
-
-IPC tools give you backend verification alongside UI assertions.
+- **Use `electron_execute_steps` for multi-step actions** — one call instead of many
+- **Use `electron_assert` for structured verification** — pass/fail per condition
+- **Use `electron_diff_state` for change detection** — snapshot before, diff after
+- **Use `electron_wait_for_network_idle` after form submits** — covers async data loading
+- **Use `electron_get_form_state` before filling** — discover fields, labels, validation
+- **Use `electron_get_errors` after each test** — catch silent failures
+- **Use `electron_error_report` for evidence** — HTML dashboard saved to disk
