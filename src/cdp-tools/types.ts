@@ -24,5 +24,6 @@ export interface ToolContext {
     screenshotCounter: number
     electronProcess: ChildProcess | null
     devtoolsStore: DevtoolsStore | null
+    mainProcessLogs: Array<{ level: string; message: string; timestamp: number }>
   }
 }

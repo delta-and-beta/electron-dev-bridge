@@ -27,6 +27,7 @@ export function getCdpTools(
       screenshotCounter: 0,
       electronProcess: null,
       devtoolsStore: null,
+      mainProcessLogs: [],
     },
   }
 
