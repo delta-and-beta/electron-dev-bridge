@@ -5,6 +5,7 @@ import type { CdpTool, ToolContext } from './types.js'
 import { createBatchTools } from './batch.js'
 import { createDevtoolsTools } from './devtools.js'
 import { createDomQueryTools } from './dom-query.js'
+import { createErrorReportTools } from './error-report.js'
 import { createInteractionTools } from './interaction.js'
 import { createLifecycleTools } from './lifecycle.js'
 import { createNavigationTools } from './navigation.js'
@@ -40,5 +41,6 @@ export function getCdpTools(
     ...createVisualTools(ctx),
     ...createDevtoolsTools(ctx),
     ...createBatchTools(ctx),
+    ...createErrorReportTools(ctx),
   ]
 }
