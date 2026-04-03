@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { CdpTool, ToolContext } from './types.js'
 import { getBoundingBox, dispatchClick, toolResult } from './helpers.js'
 
@@ -266,6 +267,97 @@ export function createBatchTools(ctx: ToolContext): CdpTool[] {
           results,
         })
       },
+    },
+    {
+      definition: {
+        name: 'electron_diff_state',
+        description:
+          'Capture a snapshot of the page state, or compare two snapshots to see what changed. Use "snapshot" mode before an action, then "diff" mode after to detect changes.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            mode: {
+              type: 'string',
+              enum: ['snapshot', 'diff'],
+              description: '"snapshot" to capture current state, "diff" to compare with last snapshot. Default: snapshot.',
+            },
+          },
+        },
+      },
+      handler: (() => {
+        let lastSnapshot: Record<string, any> | null = null
+
+        return async ({ mode = 'snapshot' }: { mode?: string } = {}) => {
+          bridge.ensureConnected()
+
+          const current = await bridge.evaluate(`
+            (() => {
+              const inputs = document.querySelectorAll('input, textarea, select');
+              const formValues = {};
+              inputs.forEach(el => {
+                const key = el.id || el.name || null;
+                if (key) formValues[key] = el.value || '';
+              });
+
+              return {
+                url: window.location.href,
+                title: document.title,
+                formValues,
+                visibleText: document.body?.innerText?.slice(0, 2000) || '',
+                elementCount: document.querySelectorAll('*').length,
+                errorCount: document.querySelectorAll('[class*="error"], [role="alert"]').length,
+              };
+            })()
+          `)
+
+          current.textHash = createHash('md5').update(current.visibleText).digest('hex').slice(0, 8)
+
+          if (mode === 'diff') {
+            if (!lastSnapshot) {
+              return toolResult({ error: 'No previous snapshot. Call with mode="snapshot" first.' })
+            }
+
+            const changes: string[] = []
+            if (lastSnapshot.url !== current.url) changes.push(`URL: ${lastSnapshot.url} → ${current.url}`)
+            if (lastSnapshot.title !== current.title) changes.push(`Title: ${lastSnapshot.title} → ${current.title}`)
+            if (lastSnapshot.textHash !== current.textHash) changes.push('Visible text changed')
+            if (lastSnapshot.elementCount !== current.elementCount) changes.push(`Elements: ${lastSnapshot.elementCount} → ${current.elementCount}`)
+            if (lastSnapshot.errorCount !== current.errorCount) changes.push(`Errors: ${lastSnapshot.errorCount} → ${current.errorCount}`)
+
+            const formChanges: Array<{ field: string; before: string; after: string }> = []
+            const allKeys = new Set([...Object.keys(lastSnapshot.formValues), ...Object.keys(current.formValues)])
+            for (const key of allKeys) {
+              const before = lastSnapshot.formValues[key] ?? ''
+              const after = current.formValues[key] ?? ''
+              if (before !== after) formChanges.push({ field: key, before, after })
+            }
+            if (formChanges.length > 0) changes.push(`${formChanges.length} form field(s) changed`)
+
+            const before = { url: lastSnapshot.url, title: lastSnapshot.title, elementCount: lastSnapshot.elementCount }
+            lastSnapshot = current
+            return toolResult({
+              changed: changes.length > 0,
+              changes,
+              formChanges,
+              before,
+              after: { url: current.url, title: current.title, elementCount: current.elementCount },
+            })
+          }
+
+          lastSnapshot = current
+          return toolResult({
+            snapshot: {
+              url: current.url,
+              title: current.title,
+              textHash: current.textHash,
+              elementCount: current.elementCount,
+              errorCount: current.errorCount,
+              formFieldCount: Object.keys(current.formValues).length,
+            },
+            message: 'Snapshot captured. Call with mode="diff" after your action to see changes.',
+          })
+        }
+      })(),
     },
   ]
 }
