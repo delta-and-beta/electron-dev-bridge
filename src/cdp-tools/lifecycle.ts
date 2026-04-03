@@ -79,13 +79,22 @@ export function createLifecycleTools(ctx: ToolContext): CdpTool[] {
         const child = spawn(
           electronBin,
           [`--remote-debugging-port=${debugPort}`, resolvedAppPath, ...args],
-          { stdio: ['ignore', 'ignore', 'pipe'] },
+          { stdio: ['ignore', 'pipe', 'pipe'] },
         )
 
         state.electronProcess = child
+        state.mainProcessLogs = []
 
         const stderrChunks: string[] = []
-        child.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk.toString()))
+        child.stdout!.on('data', (chunk: Buffer) => {
+          const msg = chunk.toString().trim()
+          if (msg) state.mainProcessLogs.push({ level: 'stdout', message: msg, timestamp: Date.now() / 1000 })
+        })
+        child.stderr!.on('data', (chunk: Buffer) => {
+          const msg = chunk.toString().trim()
+          stderrChunks.push(msg)
+          if (msg) state.mainProcessLogs.push({ level: 'stderr', message: msg, timestamp: Date.now() / 1000 })
+        })
 
         child.on('exit', () => {
           state.electronProcess = null

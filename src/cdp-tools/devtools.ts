@@ -541,5 +541,75 @@ export function createDevtoolsTools(ctx: ToolContext): CdpTool[] {
         return toolResult({ groups: result, totalErrors, totalGroups })
       },
     },
+    {
+      definition: {
+        name: 'electron_get_main_process_logs',
+        description:
+          'Get stdout/stderr output from the Electron main process (only available if launched via electron_launch). Shows main process errors, IPC handler crashes, and native module failures.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            level: {
+              type: 'string',
+              description: 'Filter by level: stdout, stderr. Default: both.',
+            },
+            search: {
+              type: 'string',
+              description: 'Filter by message content (case-insensitive).',
+            },
+            limit: {
+              type: 'number',
+              description: 'Max results to return. Default: 100.',
+            },
+            since: {
+              type: 'string',
+              description: 'ISO timestamp — only return logs after this time.',
+            },
+          },
+        },
+      },
+      handler: async ({
+        level,
+        search,
+        limit = 100,
+        since,
+      }: {
+        level?: string
+        search?: string
+        limit?: number
+        since?: string
+      } = {}) => {
+        let entries = state.mainProcessLogs
+
+        if (!entries || entries.length === 0) {
+          return toolResult({ logs: [], total: 0, message: 'No main process logs. Use electron_launch to start the app.' })
+        }
+
+        if (level) {
+          entries = entries.filter(e => e.level === level)
+        }
+
+        if (search) {
+          const lower = search.toLowerCase()
+          entries = entries.filter(e => e.message.toLowerCase().includes(lower))
+        }
+
+        if (since) {
+          const sinceTs = new Date(since).getTime() / 1000
+          entries = entries.filter(e => e.timestamp >= sinceTs)
+        }
+
+        const total = entries.length
+        const logs = entries.slice(-limit).map(e => ({
+          level: e.level,
+          message: e.message.length > MAX_BODY_LENGTH
+            ? e.message.slice(0, MAX_BODY_LENGTH) + '...'
+            : e.message,
+          timestamp: new Date(e.timestamp * 1000).toISOString(),
+        }))
+
+        return toolResult({ logs, total, returned: logs.length })
+      },
+    },
   ]
 }
